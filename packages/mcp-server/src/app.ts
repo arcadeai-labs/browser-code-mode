@@ -7,7 +7,7 @@
  * any request, and a restart loses nothing.
  */
 
-import { StreamableHTTPTransport } from "@hono/mcp";
+import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { Hono } from "hono";
 import { z } from "zod";
 import { staticProvider } from "./browse/provider.ts";
@@ -205,20 +205,15 @@ export function createApp({
         : provider,
     });
     // No `sessionIdGenerator`: the transport runs in stateless mode.
-    const transport = new StreamableHTTPTransport();
+    const transport = new WebStandardStreamableHTTPServerTransport();
     await server.connect(transport);
 
-    let response: Response | undefined;
+    let response: Response;
     try {
-      response = await transport.handleRequest(c);
+      response = await transport.handleRequest(c.req.raw);
     } catch (error) {
       await closeQuietly(server, transport);
       throw error;
-    }
-
-    if (!response) {
-      await closeQuietly(server, transport);
-      return c.body(null, 204);
     }
 
     // The body may still be streaming notifications, so tear down only once the

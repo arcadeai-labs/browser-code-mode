@@ -64,6 +64,31 @@ User-supplied profile directories are never deleted. Dev commands always use
 local Chrome regardless of the configured production provider.
 Only the Node dev lifecycle imports child_process and filesystem APIs.
 
+## In-process tools
+
+`packages/tools` hands the same `browser_run` and `browser_api` to agent
+frameworks without an MCP hop. Descriptions, sandbox, and result text come from
+`packages/mcp-server/src/core.ts`, which the MCP server registers too.
+
+```ts
+import { browserTools, instructions } from "@browse-code-mode/tools/ai-sdk"; // or /mastra
+import { createBrowserToolkit } from "@browse-code-mode/tools";             // framework-free
+import { openBrowser } from "@browse-code-mode/tools/browser";
+
+const browser = await openBrowser(); // local Chrome, BROWSE_CDP_URL, browserbase, kernel
+const tools = browserTools({ cdpUrl: browser.cdpUrl });
+// ...
+await browser.close();
+```
+
+`examples/` shows them in use:
+
+```sh
+pnpm example                  # 01-hello-world: AI SDK generateText answers by browsing
+pnpm example 02-mcp-server    # the tools on your own Streamable HTTP MCP server
+pnpm example 01-hello-world "What's on the front page of Hacker News?"
+```
+
 ## Browser lifecycle
 
 A provider implements two methods in `packages/mcp-server/src/browse/provider.ts`:

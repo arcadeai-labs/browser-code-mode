@@ -1,0 +1,38 @@
+{
+  "name": "@browse-code-mode/tools",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "browser_run and browser_api as in-process tools for the AI SDK and Mastra.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./ai-sdk": "./src/ai-sdk.ts",
+    "./mastra": "./src/mastra.ts",
+    "./browser": "./src/browser.ts"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "check": "tsc --noEmit -p tsconfig.json",
+    "test": "node --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "@browse-code-mode/mcp-server": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "peerDependencies": {
+    "@mastra/core": "^1.67.0",
+    "ai": "^7.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@mastra/core": { "optional": true },
+    "ai": { "optional": true }
+  },
+  "devDependencies": {
+    "@mastra/core": "1.67.0",
+    "@types/node": "^22.19.0",
+    "ai": "7.0.107",
+    "typescript": "^5.9.3"
+  }
+}

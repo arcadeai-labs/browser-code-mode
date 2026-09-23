@@ -1,0 +1,21 @@
+{
+  "name": "@browse-code-mode/example-hello-world",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The AI SDK plus browser tools: ask a question the model answers by browsing.",
+  "scripts": {
+    "start": "node --env-file-if-exists=../../.env index.ts",
+    "check": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "4.0.58",
+    "@browse-code-mode/tools": "workspace:*",
+    "ai": "7.0.107",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "typescript": "^5.9.3"
+  }
+}

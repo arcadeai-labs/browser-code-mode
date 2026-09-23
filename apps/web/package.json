@@ -16,8 +16,8 @@
   "dependencies": {
     "@browse-code-mode/mcp-server": "workspace:*",
     "@ai-sdk/anthropic": "4.0.58",
-    "@ai-sdk/mcp": "2.0.54",
     "@ai-sdk/react": "4.0.110",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@tanstack/react-router": "^1.168.0",
     "@tanstack/react-start": "^1.168.0",
     "ai": "7.0.107",

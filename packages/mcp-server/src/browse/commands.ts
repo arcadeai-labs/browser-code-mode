@@ -99,7 +99,9 @@ const NAV_OPTIONS: OptionSpec[] = [
 ];
 
 const SELECTOR_DOC =
-  "A snapshot ref (`@0-12`, `[0-12]`, or `0-12`), a CSS selector, or an XPath expression.";
+  "A snapshot ref (`@0-12`, `[0-12]`, or `0-12`), a CSS selector, or an XPath expression. " +
+  "Refs reach into iframes and shadow roots. CSS pierces open shadow roots, and `>>` enters an iframe: " +
+  "`iframe#checkout >> input[name=card]`.";
 
 export const COMMANDS: CommandSpec[] = [
   // ---------------------------------------------------------------- navigation
@@ -314,12 +316,23 @@ export const COMMANDS: CommandSpec[] = [
     group: "browse",
     fn: "eval",
     wire: "eval",
-    cli: "browse eval <expression>",
+    cli: "browse eval <expression> [--frame <frame>]",
     summary: "Evaluate a JavaScript expression in the page and return its result.",
     args: [{ name: "expression", type: "string" }],
+    options: [
+      {
+        name: "frame",
+        type: "string",
+        doc:
+          "Run inside an iframe instead of the top page: a snapshot frame index (`\"2\"` for refs `[2-…]`), " +
+          "the iframe's ref (`\"@0-10\"`), or an iframe selector (`\"#checkout\"`, `\"#outer >> iframe\"`). " +
+          "Cross-site frames work too.",
+      },
+    ],
     returns: "{ result: unknown }",
     notes: [
       "This runs in the *page*, not in this sandbox. Use it to reach DOM APIs that the command surface does not cover.",
+      "With `frame`, it runs in that frame's own window, so the frame's page globals are visible.",
     ],
   },
 

@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./core": "./src/core.ts",
+    "./local-browser": "./src/node/local-browser.ts",
     "./runtime": "./src/runtime.ts",
     "./worker-runtime": "./src/worker.ts",
     "./bundled-runtime": "./src/runtime-bundled.ts"
@@ -25,10 +27,9 @@
     "types:worker": "wrangler types src/worker-configuration.d.ts --strict-vars=false",
     "test:runtime": "node --test tests/runtime.e2e.test.ts",
     "test:worker": "BROWSE_RUNTIME=worker node --test tests/runtime.e2e.test.ts",
-    "test:e2e": "BROWSE_E2E=1 node --test --test-force-exit tests/browser.e2e.test.ts"
+    "test:e2e": "BROWSE_E2E=1 node --test --test-force-exit --test-concurrency=1 tests/browser.e2e.test.ts tests/frames.e2e.test.ts"
   },
   "dependencies": {
-    "@hono/mcp": "^0.3.2",
     "@hono/node-server": "^1.19.7",
     "@jitl/quickjs-wasmfile-release-sync": "^0.32.0",
     "@modelcontextprotocol/sdk": "^1.30.0",

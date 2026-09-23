@@ -17,7 +17,8 @@
     "cli": "node packages/mcp-server/src/index.ts",
     "dev:server": "pnpm --filter @browse-code-mode/mcp-server dev",
     "dev:web": "pnpm --filter @browse-code-mode/web dev",
-    "chrome": "node scripts/chrome.mjs"
+    "chrome": "node scripts/chrome.mjs",
+    "example": "node scripts/example.mjs"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

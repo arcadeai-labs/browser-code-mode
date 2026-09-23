@@ -1,6 +1,7 @@
 packages:
   - packages/*
   - apps/*
+  - examples/*
 
 # esbuild's platform binary arrives through its optional dependencies, so its
 # install script is not needed. Declined explicitly so installs do not prompt.

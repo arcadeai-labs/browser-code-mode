@@ -28,6 +28,8 @@ The browser is the only capability, reached through the globals below.
 - Every call is one real browser command, so order matters and \`Promise.all\` genuinely parallelizes independent reads.
 - \`browse.snapshot()\` returns lines of the form \`[ref] role: name\`, so \`[0-73] link: Some title\` is element \`0-73\`. Parse that tree in the sandbox instead of returning it.
 - Element targets are refs (\`@0-73\`, \`[0-73]\`, or \`0-73\`), CSS selectors, or XPath. Refs are invalidated by navigation and DOM changes, so re-snapshot after acting.
+- The snapshot includes every iframe (cross-site ones too) nested under its \`Iframe\` line, and shadow DOM content. A ref's first number is its frame: \`0\` is the top page, so \`[2-15]\` is inside the second iframe. Refs work the same wherever the element lives.
+- CSS selectors pierce open shadow roots. To target inside an iframe by selector, hop with \`>>\`: \`"iframe#checkout >> input[name=card]"\`, one \`>>\` per frame level. Closed shadow roots are reachable only by ref.
 - Results mirror the CLI's JSON exactly: \`browse.get("text", "@0-12")\` resolves to \`{ text }\`, not a bare string.
 - A failed command rejects, but the sandbox masks the reason as "Host function failed." The real message comes back in the result's \`failedCall\`, so let it throw unless you mean to recover.
 - \`log.info()\` returns output to you. Plain \`console.log\` goes to the server's stdout, where you will never see it.

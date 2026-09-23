@@ -27,7 +27,7 @@
     "types:worker": "wrangler types src/worker-configuration.d.ts --strict-vars=false",
     "test:runtime": "node --test tests/runtime.e2e.test.ts",
     "test:worker": "BROWSE_RUNTIME=worker node --test tests/runtime.e2e.test.ts",
-    "test:e2e": "BROWSE_E2E=1 node --test --test-force-exit tests/browser.e2e.test.ts"
+    "test:e2e": "BROWSE_E2E=1 node --test --test-force-exit --test-concurrency=1 tests/browser.e2e.test.ts tests/frames.e2e.test.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.7",

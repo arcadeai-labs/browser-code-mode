@@ -22,7 +22,7 @@ import {
 import type { OpenSocket } from "./transport.ts";
 
 
-import { emptyRefMaps, resolveSelector, type RefMaps } from "./selectors.ts";
+import { emptyRefMaps, resolveSelector, type FrameTarget, type RefMaps, type ResolvedSelector } from "./selectors.ts";
 
 /** Raised for command-level failures, mirroring the CLI's error surface. */
 export class BrowseCommandError extends Error {
@@ -117,7 +117,7 @@ export class BrowserSession implements CommandRunner {
     }
   }
 
-  selector(value: string): string {
+  selector(value: string): ResolvedSelector {
     return resolveSelector(value, this.refMaps);
   }
 
@@ -125,9 +125,25 @@ export class BrowserSession implements CommandRunner {
     return page.locator(this.selector(value));
   }
 
+  /** A frame by snapshot index (`"2"`), iframe ref (`"@0-10"`), or iframe selector. */
+  async frame(page: Page, value: string): Promise<FrameTarget> {
+    if (/^\d+$/.test(value)) {
+      const frame = this.refMaps.frameMap[value];
+      if (!frame)
+        throw new BrowseCommandError(
+          `No frame ${value} in this program's snapshot. Call browse.snapshot() first; ` +
+            `frame indexes are the first number of a ref.`,
+          "stale_ref",
+        );
+      return frame;
+    }
+    return this.locator(page, value).contentFrame();
+  }
+
   setRefMaps(maps: Partial<RefMaps>): void {
     this.refMaps.xpathMap = maps.xpathMap ?? {};
     this.refMaps.urlMap = maps.urlMap ?? {};
+    this.refMaps.frameMap = maps.frameMap ?? {};
   }
 
   markCursorEnabled(page: Page): void {
@@ -197,10 +213,7 @@ const HANDLERS: Record<string, Handler> = {
   async snapshot(session, params) {
     const page = await session.activePage();
     const snapshot = await page.snapshot();
-    session.setRefMaps({
-      xpathMap: snapshot.xpathMap ?? {},
-      urlMap: snapshot.urlMap ?? {},
-    });
+    session.setRefMaps(snapshot);
 
     const tree = formatTree(snapshot.formattedTree, {
       filter: optStr(params, "filter"),
@@ -314,7 +327,10 @@ const HANDLERS: Record<string, Handler> = {
 
   async eval(session, params) {
     const page = await session.activePage();
-    return { result: await page.evaluate(str(params, "expression")) };
+    const expression = str(params, "expression");
+    const frame = optStr(params, "frame");
+    if (!frame) return { result: await page.evaluate(expression) };
+    return { result: await page.evaluateIn(await session.frame(page, frame), expression) };
   },
 
   // ----------------------------------------------------------------- runtime

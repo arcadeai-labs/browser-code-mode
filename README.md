@@ -207,7 +207,19 @@ Neither deployment starts Chrome. No production deployment is performed by build
 The command table remains the source of truth; call `browser_api` for signatures.
 Snapshots use Chrome's accessibility tree, with refs mapped to backend DOM nodes
 (the legacy `xpathMap` field contains these selectors). CSS and XPath also work.
-The current snapshot covers the main frame, not cross-origin iframe content.
+
+Snapshots cover every frame. Same-process iframes and cross-site (out-of-process)
+iframes, nested at any depth, are attached over CDP and spliced in under their
+`Iframe` line. A ref is `<frame>-<node>`: `0` is the top page, and iframes are
+numbered in document order. Shadow DOM content, including closed roots, appears
+in the tree, and refs act on it directly. CSS selectors pierce open shadow roots,
+and `>>` enters an iframe by selector (`iframe#checkout >> input[name=card]`).
+Clicks translate frame coordinates to the top page and wait for the element to
+hold still across a drawn frame, because Chrome routes input between frames using
+the last drawn layout. `get box` returns top-page coordinates, so `mouse.click`
+works on elements inside frames. `eval(expression, { frame })` runs in a frame's
+own main world (its page globals included), with the frame named by snapshot
+index (`"2"`), the iframe's ref, or an iframe selector.
 
 Screenshots return base64; writing screenshot paths on the application server is
 not supported. Upload paths refer to files on the **browser host**, never the

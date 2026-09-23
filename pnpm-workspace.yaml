@@ -1,0 +1,9 @@
+packages:
+  - packages/*
+  - apps/*
+
+# esbuild's platform binary arrives through its optional dependencies, so its
+# install script is not needed. Declined explicitly so installs do not prompt.
+allowBuilds:
+  esbuild: false
+  workerd: true

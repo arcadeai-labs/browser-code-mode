@@ -1,0 +1,26 @@
+{
+  "name": "browse-code-mode",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Stateless browser code mode: an MCP server and a web app that let an agent drive a browser by writing TypeScript.",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "packageManager": "pnpm@11.10.0",
+  "scripts": {
+    "build": "pnpm -r build",
+    "check": "pnpm -r check",
+    "test": "pnpm -r --if-present test",
+    "test:e2e": "pnpm --filter @browse-code-mode/mcp-server test:e2e",
+    "dev": "node scripts/dev.mjs",
+    "cli": "node packages/mcp-server/src/index.ts",
+    "dev:server": "pnpm --filter @browse-code-mode/mcp-server dev",
+    "dev:web": "pnpm --filter @browse-code-mode/web dev",
+    "chrome": "node scripts/chrome.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "@types/node": "^22.19.0"
+  }
+}

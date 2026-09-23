@@ -1,0 +1,47 @@
+{
+  "name": "@browse-code-mode/mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./runtime": "./src/runtime.ts",
+    "./worker-runtime": "./src/worker.ts",
+    "./bundled-runtime": "./src/runtime-bundled.ts"
+  },
+  "description": "Stateless Streamable HTTP MCP server exposing browser code mode over CDP.",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "bin": {
+    "browse-code-mode": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc --noEmit -p tsconfig.json && tsc -p tsconfig.vercel.json",
+    "start": "node src/index.ts",
+    "dev": "node src/index.ts dev",
+    "test": "node --test tests/commands.test.ts tests/sandbox.test.ts tests/mcp.test.ts tests/lifecycle.test.ts",
+    "check:worker": "wrangler deploy --dry-run",
+    "types:worker": "wrangler types src/worker-configuration.d.ts --strict-vars=false",
+    "test:runtime": "node --test tests/runtime.e2e.test.ts",
+    "test:worker": "BROWSE_RUNTIME=worker node --test tests/runtime.e2e.test.ts",
+    "test:e2e": "BROWSE_E2E=1 node --test --test-force-exit tests/browser.e2e.test.ts"
+  },
+  "dependencies": {
+    "@hono/mcp": "^0.3.2",
+    "@hono/node-server": "^1.19.7",
+    "@jitl/quickjs-wasmfile-release-sync": "^0.32.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "hono": "^4.13.8",
+    "node-html-markdown": "^1.3.0",
+    "quickjs-emscripten-core": "^0.32.0",
+    "sucrase": "^3.35.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260921.1",
+    "@types/node": "^22.19.0",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.136.0"
+  }
+}

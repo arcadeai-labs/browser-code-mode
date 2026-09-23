@@ -1,0 +1,30 @@
+import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
+
+import styles from "../styles.css?url";
+
+export const Route = createRootRoute({
+  head: () => ({
+    meta: [
+      { charSet: "utf-8" },
+      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { title: "browse code mode" },
+    ],
+    links: [{ rel: "stylesheet", href: styles }],
+  }),
+  component: RootDocument,
+  notFoundComponent: () => <main><h1>Page not found</h1><a href="/">Return to browser</a></main>,
+});
+
+function RootDocument() {
+  return (
+    <html lang="en">
+      <head>
+        <HeadContent />
+      </head>
+      <body>
+        <Outlet />
+        <Scripts />
+      </body>
+    </html>
+  );
+}

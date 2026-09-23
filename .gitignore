@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.output/
+.nitro/
+.tanstack/
+.env
+.dev.vars*
+.wrangler/
+.vercel/
+*.tsbuildinfo
+routeTree.gen.ts

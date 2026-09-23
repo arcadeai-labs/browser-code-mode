@@ -1,0 +1,167 @@
+/*
+ * Streamdown renders markdown with Tailwind utility classes, so Tailwind has to
+ * scan its bundle to emit them. Theme and utilities only — preflight would
+ * reset the hand-written layout below for no benefit.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@source "../node_modules/streamdown/dist/*.js";
+
+:root {
+  color-scheme: dark;
+  --bg: #0b0b0c;
+  --panel: #111113;
+  --line: #232327;
+  --text: #e7e7ea;
+  --muted: #8a8a94;
+  --accent: #6ea8fe;
+  --error: #ff6b6b;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #app {
+  height: 100%;
+  margin: 0;
+  /* Only the message list scrolls. Without this a wide code block in a tool
+     result scrolls the whole layout, dragging the browser pane out of view. */
+  overflow: hidden;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.split {
+  display: grid;
+  /* `minmax(0, …)` on both tracks: a grid item defaults to min-width:auto, so
+     long unwrapped lines would otherwise widen the column past its track. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 460px);
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.viewport {
+  position: relative;
+  height: 100%;
+  min-width: 0;
+  background: #000;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.frame {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.viewport-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.chat {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-left: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.messages {
+  flex: 1 1 auto;
+  /* A flex item's min-height is auto, which would let the list grow instead of
+     scrolling. */
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.msg { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.msg-user { align-items: flex-end; }
+
+.bubble {
+  max-width: 92%;
+  padding: 8px 11px;
+  border-radius: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.msg-user .bubble { background: #1e2a3d; }
+.msg-assistant .bubble { background: #17171a; }
+
+/* Streamdown emits real block elements, so .bubble's `pre-wrap` would turn
+   every source newline into a visible break and double the spacing. Streamdown
+   brings its own typography; only the container needs correcting. */
+.markdown {
+  white-space: normal;
+}
+
+.markdown > :first-child { margin-top: 0; }
+.markdown > :last-child { margin-bottom: 0; }
+
+/* A wide table or code fence scrolls itself rather than widening the column. */
+.markdown table,
+.markdown pre {
+  max-width: 100%;
+}
+
+.composer {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.composer textarea {
+  flex: 1;
+  resize: none;
+  min-height: 40px;
+  max-height: 160px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #0e0e10;
+  color: inherit;
+  font: inherit;
+}
+
+.composer textarea:focus { outline: 1px solid var(--accent); }
+
+.composer button {
+  align-self: flex-end;
+  padding: 9px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #1e2a3d;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.composer button:disabled { opacity: 0.5; cursor: default; }
+
+.error {
+  margin: 0 16px 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--error);
+  color: var(--error);
+  font-size: 12px;
+}

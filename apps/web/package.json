@@ -1,0 +1,41 @@
+{
+  "name": "@browse-code-mode/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "TanStack Start UI for browser code mode: live view, prompt, generated programs and their output.",
+  "scripts": {
+    "dev": "vite dev",
+    "test": "node --test tests/browser-api.test.ts",
+    "build": "vite build",
+    "build:cloudflare": "vite build --mode cloudflare",
+    "build:vercel": "vite build --mode vercel",
+    "start": "node .output/server/index.mjs",
+    "check": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@browse-code-mode/mcp-server": "workspace:*",
+    "@ai-sdk/anthropic": "4.0.58",
+    "@ai-sdk/mcp": "2.0.54",
+    "@ai-sdk/react": "4.0.110",
+    "@tanstack/react-router": "^1.168.0",
+    "@tanstack/react-start": "^1.168.0",
+    "ai": "7.0.107",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "streamdown": "2.6.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.57.0",
+    "@tailwindcss/vite": "4.3.3",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "nitro": "3.0.260903-beta",
+    "tailwindcss": "4.3.3",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.0",
+    "wrangler": "^4.136.0"
+  }
+}

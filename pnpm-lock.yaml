@@ -87,6 +87,9 @@ importers:
       '@ai-sdk/anthropic':
         specifier: 4.0.58
         version: 4.0.58(zod@3.25.76)
+      '@browse-code-mode/mcp-server':
+        specifier: workspace:*
+        version: link:../../packages/mcp-server
       '@browse-code-mode/tools':
         specifier: workspace:*
         version: link:../../packages/tools
@@ -106,6 +109,9 @@ importers:
 
   examples/02-mcp-server:
     dependencies:
+      '@browse-code-mode/mcp-server':
+        specifier: workspace:*
+        version: link:../../packages/mcp-server
       '@browse-code-mode/tools':
         specifier: workspace:*
         version: link:../../packages/tools

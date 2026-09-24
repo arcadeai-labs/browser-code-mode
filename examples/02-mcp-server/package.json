@@ -9,6 +9,7 @@
     "check": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@browse-code-mode/mcp-server": "workspace:*",
     "@browse-code-mode/tools": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "zod": "^3.25.76"

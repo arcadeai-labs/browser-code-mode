@@ -8,18 +8,22 @@
 import { anthropic } from "@ai-sdk/anthropic";
 import { generateText, stepCountIs } from "ai";
 import { browserTools, instructions } from "@browse-code-mode/tools/ai-sdk";
-import { openBrowser } from "@browse-code-mode/tools/browser";
+import { providerBrowser } from "@browse-code-mode/tools/browser";
+import { localProvider } from "@browse-code-mode/mcp-server/local-browser";
 
 const prompt = process.argv[2] ?? "What's the weather in San Francisco right now?";
 
-// Local Chrome by default; BROWSE_PROVIDER / BROWSE_CDP_URL pick another browser.
-const browser = await openBrowser();
+// Local Chrome: borrows one already on CHROME_PORT, or launches it.
+const browser = providerBrowser(localProvider());
 
 try {
+  // Start one session up front; browser_run uses it when the model omits sessionId.
+  await browser.start();
+
   const { text } = await generateText({
     model: anthropic(process.env.ANTHROPIC_MODEL ?? "claude-sonnet-5"),
     system: instructions,
-    tools: browserTools({ cdpUrl: browser.cdpUrl }),
+    tools: browserTools({ browser }),
     // Browsing takes a few programs: read the API, look at the page, answer.
     stopWhen: stepCountIs(10),
     prompt,

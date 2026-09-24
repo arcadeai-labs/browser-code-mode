@@ -3,8 +3,9 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { createServer } from "node:net";
 import { join } from "node:path";
-import type { BrowserHandle } from "../browse/provider.ts";
+import type { BrowserHandle, BrowserProvider } from "../browse/provider.ts";
 
 export async function cdpReady(port: number): Promise<boolean> {
   try {
@@ -119,4 +120,43 @@ export async function createLocalBrowser({
     await shutdown();
     throw error;
   }
+}
+
+/**
+ * Local Chrome as a provider. The first session borrows or launches Chrome on
+ * `port`; later ones launch on free ports so sessions stay isolated.
+ *
+ * Unlike hosted providers, shutdown needs the instance that launched the
+ * browser: the process lives here, not behind an API.
+ */
+export function localProvider({
+  port = Number(process.env.CHROME_PORT ?? 9222),
+  headless = process.env.CHROME_HEADLESS !== "0",
+}: { port?: number; headless?: boolean } = {}): BrowserProvider {
+  const running = new Map<string, LocalBrowser>();
+  return {
+    name: "local",
+    async create({ signal } = {}) {
+      const target = running.has(String(port)) ? await freePort() : port;
+      const local = await createLocalBrowser({ port: target, headless, ...(signal ? { signal } : {}) });
+      running.set(local.browser.cdpUrl, local);
+      return { provider: "local", cdpUrl: local.browser.cdpUrl, sessionId: local.browser.cdpUrl };
+    },
+    async shutdown(browser) {
+      const local = running.get(browser.cdpUrl);
+      running.delete(browser.cdpUrl);
+      await local?.shutdown();
+    },
+  };
+}
+
+function freePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const { port } = server.address() as { port: number };
+      server.close(() => resolve(port));
+    });
+  });
 }

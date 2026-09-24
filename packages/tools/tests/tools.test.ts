@@ -6,7 +6,13 @@ import { MockLanguageModelV4 } from "ai/test";
 
 import { browserTools as aiSdkTools } from "../src/ai-sdk.ts";
 import { browserTools as mastraTools } from "../src/mastra.ts";
-import type { BrowserRunOutput, BrowserToolsOptions } from "../src/index.ts";
+import {
+  providerBrowser,
+  type BrowserRunOutput,
+  type BrowserToolsOptions,
+  type LiveView,
+  type SessionSummary,
+} from "../src/index.ts";
 
 /** Answers commands like a page titled "Fake"; no Chrome needed. */
 function fakeBrowser() {
@@ -131,4 +137,87 @@ test("without cdpUrl, each program leases and releases a provider browser", asyn
   await tools.browser_run.execute!({ code: `return 1;` }, { toolCallId: "1", messages: [], context: {} });
   assert.deepEqual(lifecycle, ["create", "shutdown"]);
   assert.deepEqual(state.endpoints, ["ws://leased"]);
+});
+
+test("with a Browser, the model starts a session, drives it by id, watches it, and stops it", async () => {
+  const { state, connect } = fakeBrowser();
+  let created = 0;
+  const shutdowns: string[] = [];
+  const browser = providerBrowser(
+    {
+      name: "test",
+      async create() {
+        created += 1;
+        return { provider: "test", cdpUrl: `ws://session-${created}`, sessionId: `s${created}` };
+      },
+      async shutdown(handle) {
+        shutdowns.push(handle.sessionId!);
+      },
+    },
+    {
+      connect: async () => ({
+        async run() {
+          return { base64: "SlBFRw==" };
+        },
+        async close() {},
+      }),
+    },
+  );
+  const tools = aiSdkTools({ browser, connect, env: {} });
+  const options = { toolCallId: "1", messages: [], context: {} };
+
+  // The CDP URL is a credential: it never reaches the model.
+  assert.doesNotMatch(JSON.stringify(tools.browser_run.inputSchema), /cdpUrl/);
+  const started = await tools.browser_start!.execute!({}, options);
+  assert.deepEqual(Object.keys(started).sort(), ["id", "provider", "startedAt"]);
+  await tools.browser_start!.execute!({}, options);
+
+  const first = (await tools.browser_run.execute!({ code: `return 1;`, sessionId: "s1" }, options)) as BrowserRunOutput;
+  await tools.browser_run.execute!({ code: `return 1;` }, options);
+  assert.match(first.text, /· session s1\n/);
+  assert.doesNotMatch(JSON.stringify(first), /ws:\/\//);
+  assert.deepEqual(state.endpoints, ["ws://session-1", "ws://session-2"]);
+
+  const unknown = (await tools.browser_run.execute!(
+    { code: `return 1;`, sessionId: "nope" },
+    options,
+  )) as BrowserRunOutput;
+  assert.equal(unknown.isError, true);
+  assert.match(unknown.text, /Unknown browser session: nope/);
+
+  const view = (await tools.browser_live_view!.execute!({ sessionId: "s1" }, options)) as LiveView;
+  const viewOutput = await tools.browser_live_view!.toModelOutput!({ toolCallId: "1", input: { sessionId: "s1" }, output: view });
+  assert.equal(viewOutput.type, "content");
+  assert.match(JSON.stringify(viewOutput), /"mediaType":"image\/jpeg".*"SlBFRw=="/);
+
+  await tools.browser_stop!.execute!({ sessionId: "s1" }, options);
+  const { sessions } = (await tools.browser_list_sessions!.execute!({}, options)) as { sessions: SessionSummary[] };
+  assert.deepEqual(sessions.map((s) => s.id), ["s2"]);
+  assert.deepEqual(shutdowns, ["s1"]);
+});
+
+test("with a Browser and no open session, browser_run uses a temporary one", async () => {
+  const { state, connect } = fakeBrowser();
+  const lifecycle: string[] = [];
+  const browser = providerBrowser({
+    name: "test",
+    async create() {
+      lifecycle.push("create");
+      return { provider: "test", cdpUrl: "ws://temporary" };
+    },
+    async shutdown() {
+      lifecycle.push("shutdown");
+    },
+  });
+  const tools = mastraTools({ browser, connect, env: {} });
+  await tools.browser_run.execute!({ code: `return 1;` }, {} as never);
+  assert.deepEqual(lifecycle, ["create", "shutdown"]);
+  assert.deepEqual(state.endpoints, ["ws://temporary"]);
+  assert.deepEqual(await browser.listSessions(), []);
+});
+
+test("without a Browser there are no session tools", () => {
+  const tools = aiSdkTools({ cdpUrl: "ws://fake", env: {} });
+  assert.deepEqual(Object.keys(tools).sort(), ["browser_api", "browser_run"]);
+  assert.throws(() => aiSdkTools({ cdpUrl: "ws://fake", browser: providerBrowser({} as never) }), /not both/);
 });

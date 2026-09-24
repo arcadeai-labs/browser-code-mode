@@ -1,63 +1,115 @@
 /**
- * One way to get a browser, whatever provides it.
+ * The browser lifecycle behind the session tools: one method per tool.
+ *
+ * | Method         | Tool                    |
+ * | -------------- | ----------------------- |
+ * | `start`        | `browser_start`         |
+ * | `stop`         | `browser_stop`          |
+ * | `listSessions` | `browser_list_sessions` |
+ * | `liveView`     | `browser_live_view`     |
+ *
+ * Implement `Browser` for any source of browsers, or adapt a `BrowserProvider`
+ * with `providerBrowser`:
  *
  * ```ts
- * const browser = await openBrowser();
+ * const browser = providerBrowser(provider);
  * try {
- *   const tools = browserTools({ cdpUrl: browser.cdpUrl });
+ *   const tools = browserTools({ browser });
  *   // ...
  * } finally {
  *   await browser.close();
  * }
  * ```
- *
- * `BROWSE_PROVIDER` picks the source, with the same variables as the server:
- *
- * - `local`: launch local Chrome, or borrow one already on `CHROME_PORT`.
- *   The default when neither `BROWSE_PROVIDER` nor `BROWSE_CDP_URL` is set.
- * - `cdp`: borrow `BROWSE_CDP_URL`. The default when it is set; close is a no-op.
- * - `browserbase` / `kernel`: create a hosted session; close releases it.
- *
- * Node only when `local` is selected, which spawns a process.
  */
 
-import { providerFromEnv, type BrowserHandle } from "@browse-code-mode/mcp-server/core";
+import {
+  captureScreenshot,
+  type BrowserProvider,
+  type ToolDeps,
+} from "@browse-code-mode/mcp-server/core";
 
-export interface OpenedBrowser {
-  /** Pass to `browserTools({ cdpUrl })`. Treat it as a credential. */
+export interface BrowserSession {
+  /** What the model passes back as `sessionId`. */
+  id: string;
+  provider: string;
+  /** Where programs attach. A credential: never shown to the model. */
   cdpUrl: string;
-  /** The serializable handle, e.g. a hosted session id or live view URL. */
-  handle: BrowserHandle;
-  /** Stop or release the browser. Idempotent. */
+  /** A page a person can open to watch the session, when the provider has one. */
+  liveViewUrl?: string;
+  startedAt: string;
+}
+
+export interface LiveView {
+  /** The session's live view page, when the provider has one. */
+  url?: string;
+  /** The current page, as the model sees it. */
+  screenshot: { mediaType: "image/jpeg"; base64: string };
+}
+
+export interface Browser {
+  start(options?: { signal?: AbortSignal }): Promise<BrowserSession>;
+  /** Throws for an unknown session. */
+  stop(sessionId: string): Promise<void>;
+  listSessions(): Promise<BrowserSession[]>;
+  liveView(sessionId: string, options?: { signal?: AbortSignal }): Promise<LiveView>;
+}
+
+export interface ProviderBrowser extends Browser {
+  /** Stop every session still open. */
   close(): Promise<void>;
 }
 
-export async function openBrowser({
-  env = process.env,
-  signal,
-}: {
-  env?: Record<string, string | undefined>;
-  signal?: AbortSignal;
-} = {}): Promise<OpenedBrowser> {
-  const name = env.BROWSE_PROVIDER ?? (env.BROWSE_CDP_URL ? "cdp" : "local");
+/**
+ * Sessions from a `BrowserProvider`, tracked in memory. `listSessions` reports
+ * the sessions this instance started and has not stopped.
+ */
+export function providerBrowser(
+  provider: BrowserProvider,
+  { connect }: { connect?: ToolDeps["connect"] } = {},
+): ProviderBrowser {
+  const sessions = new Map<string, BrowserSession>();
+  const find = (sessionId: string): BrowserSession => {
+    const session = sessions.get(sessionId);
+    if (!session) throw new Error(`Unknown browser session: ${sessionId}.`);
+    return session;
+  };
 
-  if (name === "local") {
-    // Imported lazily so hosted providers never load child_process.
-    const { createLocalBrowser } = await import("@browse-code-mode/mcp-server/local-browser");
-    const local = await createLocalBrowser(signal ? { signal } : {});
-    return {
-      cdpUrl: local.browser.cdpUrl,
-      handle: { ...local.browser, provider: "local" },
-      close: once(() => local.shutdown()),
-    };
-  }
-
-  const provider = providerFromEnv({ ...env, BROWSE_PROVIDER: name });
-  const handle = await provider.create(signal ? { signal } : {});
-  return { cdpUrl: handle.cdpUrl, handle, close: once(() => provider.shutdown(handle)) };
-}
-
-function once(close: () => Promise<void>): () => Promise<void> {
-  let closing: Promise<void> | undefined;
-  return () => (closing ??= close());
+  const browser: ProviderBrowser = {
+    async start({ signal } = {}) {
+      const handle = await provider.create(signal ? { signal } : {});
+      const session: BrowserSession = {
+        id: handle.sessionId ?? crypto.randomUUID(),
+        provider: handle.provider,
+        cdpUrl: handle.cdpUrl,
+        ...(handle.liveViewUrl ? { liveViewUrl: handle.liveViewUrl } : {}),
+        startedAt: new Date().toISOString(),
+      };
+      sessions.set(session.id, session);
+      return session;
+    },
+    async stop(sessionId) {
+      const { id, provider: name, cdpUrl } = find(sessionId);
+      // Forget it first, so a second stop fails fast instead of racing this one.
+      sessions.delete(id);
+      await provider.shutdown({ provider: name, cdpUrl, sessionId: id });
+    },
+    async listSessions() {
+      return [...sessions.values()];
+    },
+    async liveView(sessionId, { signal } = {}) {
+      const session = find(sessionId);
+      const base64 = await captureScreenshot(session.cdpUrl, {
+        ...(connect ? { connect } : {}),
+        signal,
+      });
+      return {
+        ...(session.liveViewUrl ? { url: session.liveViewUrl } : {}),
+        screenshot: { mediaType: "image/jpeg", base64 },
+      };
+    },
+    async close() {
+      await Promise.allSettled([...sessions.keys()].map((id) => browser.stop(id)));
+    },
+  };
+  return browser;
 }

@@ -70,16 +70,38 @@ Only the Node dev lifecycle imports child_process and filesystem APIs.
 frameworks without an MCP hop. Descriptions, sandbox, and result text come from
 `packages/mcp-server/src/core.ts`, which the MCP server registers too.
 
+Pass a `Browser` and the model also manages its own sessions. Each method backs
+one tool:
+
+```ts
+interface Browser {
+  start(options?: { signal?: AbortSignal }): Promise<BrowserSession>; // browser_start
+  stop(sessionId: string): Promise<void>;                             // browser_stop
+  listSessions(): Promise<BrowserSession[]>;                          // browser_list_sessions
+  liveView(sessionId: string): Promise<LiveView>;                     // browser_live_view
+}
+```
+
+`browser_run` then takes a `sessionId` instead of a `cdpUrl`, so CDP credentials
+never reach the model. `browser_live_view` returns a screenshot of the current
+page, plus the provider's live view URL when it has one (Kernel does).
+Implement `Browser` yourself, or adapt any `BrowserProvider` with
+`providerBrowser`:
+
 ```ts
 import { browserTools, instructions } from "@browse-code-mode/tools/ai-sdk"; // or /mastra
-import { createBrowserToolkit } from "@browse-code-mode/tools";             // framework-free
-import { openBrowser } from "@browse-code-mode/tools/browser";
+import { createBrowserToolkit, providerBrowser } from "@browse-code-mode/tools"; // framework-free
+import { localProvider } from "@browse-code-mode/mcp-server/local-browser";
 
-const browser = await openBrowser(); // local Chrome, BROWSE_CDP_URL, browserbase, kernel
-const tools = browserTools({ cdpUrl: browser.cdpUrl });
+const browser = providerBrowser(localProvider()); // or providerFromEnv(process.env) for hosted
+const tools = browserTools({ browser }); // or browserTools({ cdpUrl }) for one fixed browser
 // ...
-await browser.close();
+await browser.close(); // stops every session still open
 ```
+
+`localProvider` launches Chrome (or borrows one on `CHROME_PORT`). It is
+Node-only, so it lives beside the dev lifecycle in
+`packages/mcp-server/src/node/local-browser.ts`.
 
 `examples/` shows them in use:
 

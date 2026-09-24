@@ -10,11 +10,12 @@ pnpm example
 pnpm example 01-hello-world "What's on the front page of Hacker News?"
 ```
 
-The browser comes from `openBrowser()`, which returns a `cdpUrl` and a `close()`
-for whichever browser `BROWSE_PROVIDER` selects: headless local Chrome by default
-(`CHROME_HEADLESS=0` to watch it), `BROWSE_CDP_URL` to borrow one, or
-`browserbase` / `kernel` with that provider's credentials. `ANTHROPIC_MODEL`
-picks the model.
+Browsers come from `providerBrowser(localProvider())`: headless local Chrome
+(`CHROME_HEADLESS=0` to watch it), borrowing one already on `CHROME_PORT` if
+there is one. Swap in `providerFromEnv(process.env)` for `browserbase`, `kernel`,
+or `BROWSE_CDP_URL`. The example starts one
+session up front; the model can start, list, watch, and stop more with the session
+tools. `browser.close()` stops them all. `ANTHROPIC_MODEL` picks the model.
 
 The whole integration is:
 
@@ -24,7 +25,7 @@ import { browserTools, instructions } from "@browse-code-mode/tools/ai-sdk";
 await generateText({
   model,
   system: instructions,
-  tools: browserTools({ cdpUrl: browser.cdpUrl }), // browser = await openBrowser()
+  tools: browserTools({ browser }), // browser = providerBrowser(localProvider())
   stopWhen: stepCountIs(10),
   prompt,
 });

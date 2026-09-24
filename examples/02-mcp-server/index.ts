@@ -13,15 +13,21 @@ import { createServer } from "node:http";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { createBrowserToolkit } from "@browse-code-mode/tools";
-import { openBrowser } from "@browse-code-mode/tools/browser";
+import { createBrowserToolkit, providerBrowser } from "@browse-code-mode/tools";
+import { localProvider } from "@browse-code-mode/mcp-server/local-browser";
 
 const port = Number(process.env.PORT ?? 3000);
 const host = "127.0.0.1";
 
-// Local Chrome by default; BROWSE_PROVIDER / BROWSE_CDP_URL pick another browser.
-const browser = await openBrowser();
-const toolkit = createBrowserToolkit({ cdpUrl: browser.cdpUrl });
+// Local Chrome: borrows one already on CHROME_PORT, or launches it.
+// Sessions outlive each stateless request because they live in this process.
+const browser = providerBrowser(localProvider());
+const toolkit = createBrowserToolkit({ browser });
+const sessions = toolkit.sessions!;
+
+const json = (value: unknown) => ({
+  content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }],
+});
 
 function createMcpServer(): McpServer {
   const server = new McpServer(
@@ -45,6 +51,46 @@ function createMcpServer(): McpServer {
     async (input, { signal }) => {
       const { text, isError, ...structuredContent } = await toolkit.run.execute(input, signal);
       return { content: [{ type: "text", text }], structuredContent, isError };
+    },
+  );
+
+  server.registerTool(
+    sessions.start.name,
+    { description: sessions.start.description, annotations: { readOnlyHint: false, openWorldHint: true } },
+    async ({ signal }) => json(await sessions.start.execute(signal)),
+  );
+
+  server.registerTool(
+    sessions.stop.name,
+    {
+      description: sessions.stop.description,
+      inputSchema: sessions.stop.inputSchema.shape,
+      annotations: { readOnlyHint: false, destructiveHint: true },
+    },
+    async (input) => json(await sessions.stop.execute(input)),
+  );
+
+  server.registerTool(
+    sessions.list.name,
+    { description: sessions.list.description, annotations: { readOnlyHint: true } },
+    async () => json(await sessions.list.execute()),
+  );
+
+  server.registerTool(
+    sessions.liveView.name,
+    {
+      description: sessions.liveView.description,
+      inputSchema: sessions.liveView.inputSchema.shape,
+      annotations: { readOnlyHint: true },
+    },
+    async (input, { signal }) => {
+      const { url, screenshot } = await sessions.liveView.execute(input, signal);
+      return {
+        content: [
+          ...(url ? [{ type: "text" as const, text: `Live view: ${url}` }] : []),
+          { type: "image" as const, data: screenshot.base64, mimeType: screenshot.mediaType },
+        ],
+      };
     },
   );
 
@@ -78,7 +124,7 @@ const http = createServer(async (req, res) => {
 
 http.listen(port, host, () => {
   console.log(`browser MCP server on http://${host}:${port}/mcp`);
-  console.log(`driving ${browser.handle.provider} browser${browser.handle.liveViewUrl ? ` (live view: ${browser.handle.liveViewUrl})` : ""}`);
+  console.log("the model starts browsers with browser_start; they stop on exit");
 });
 
 const stop = async () => {

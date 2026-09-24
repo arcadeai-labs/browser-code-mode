@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "4.0.58",
+    "@browse-code-mode/mcp-server": "workspace:*",
     "@browse-code-mode/tools": "workspace:*",
     "ai": "7.0.107",
     "zod": "^3.25.76"

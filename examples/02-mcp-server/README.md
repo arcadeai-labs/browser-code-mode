@@ -16,12 +16,13 @@ claude mcp add --transport http browser http://127.0.0.1:3000/mcp
 npx @modelcontextprotocol/inspector   # Streamable HTTP, same URL
 ```
 
-As in 01, `openBrowser()` supplies the browser (local Chrome by default, or
-whatever `BROWSE_PROVIDER` / `BROWSE_CDP_URL` select), and Ctrl-C closes it.
-`PORT` changes the port.
+As in 01, `providerBrowser(localProvider())` supplies local Chrome. The
+model manages sessions with `browser_start`, `browser_list_sessions`,
+`browser_live_view`, and `browser_stop`; sessions live in this process, so they
+outlive each stateless request, and Ctrl-C stops them. `PORT` changes the port.
 
 The server listens on loopback and checks the `Host` header, because any caller
-can drive the browser, and `browser_run` accepts a `cdpUrl` naming any endpoint.
+can start and drive browsers.
 Before exposing it elsewhere, add authentication (compare `MCP_AUTH_TOKEN` in
 `packages/mcp-server`).
 

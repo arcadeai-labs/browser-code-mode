@@ -12,6 +12,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { staticProvider } from "./browse/provider.ts";
 import { BrowserSession } from "./browse/driver.ts";
+import { captureScreenshot } from "./core.ts";
 
 import { renderApiDts, renderCheatsheet, PROGRAM_GUIDE } from "./browse/dts.ts";
 import type { ServerConfig } from "./config.ts";
@@ -99,26 +100,18 @@ export function createApp({
     const endpoint = body.cdpUrl ?? config.defaultCdpUrl;
     if (!endpoint || typeof endpoint !== "string")
       return c.json({ error: "cdpUrl is required." }, 400);
-    const session = await (connect ?? BrowserSession.connect)({
-      cdpUrl: endpoint,
+    const base64 = await captureScreenshot(endpoint, {
+      ...(connect ? { connect } : {}),
       signal: c.req.raw.signal,
     });
-    try {
-      const result = (await session.run("screenshot", {
-        type: "jpeg",
-        quality: 70,
-      })) as { base64: string };
-      return c.body(
-        Uint8Array.from(atob(result.base64), (char) => char.charCodeAt(0)),
-        200,
-        {
-          "content-type": "image/jpeg",
-          "cache-control": "no-store",
-        },
-      );
-    } finally {
-      await session.close();
-    }
+    return c.body(
+      Uint8Array.from(atob(base64), (char) => char.charCodeAt(0)),
+      200,
+      {
+        "content-type": "image/jpeg",
+        "cache-control": "no-store",
+      },
+    );
   });
 
   app.get("/health", (c) =>

@@ -146,7 +146,8 @@ export function renderGuide(config: ServerConfig): string {
   )}\n\n## Example\n\n\`\`\`ts\n${EXAMPLE_PROGRAM}\n\`\`\`\n`;
 }
 
-export function runToolDescription(config: ServerConfig): string {
+/** `browserLine` replaces the default sentence on how a program picks its browser. */
+export function runToolDescription(config: ServerConfig, browserLine?: string): string {
   const exposed = COMMANDS.length;
   return [
     `Evaluate a TypeScript program against a real browser and return its result.`,
@@ -156,9 +157,9 @@ export function runToolDescription(config: ServerConfig): string {
     `read, filter — into one program and return just the data you need. Intermediate page`,
     `content stays in the sandbox instead of entering your context.`,
     ``,
-    config.defaultCdpUrl
+    browserLine ?? (config.defaultCdpUrl
       ? `Browser: the CDP endpoint at \`${config.defaultCdpUrl}\`. Pass \`cdpUrl\` to drive a different one.`
-      : "Browser: pass `cdpUrl` to reuse a browser, or omit it to create a temporary browser with the configured provider.",
+      : "Browser: pass `cdpUrl` to reuse a browser, or omit it to create a temporary browser with the configured provider."),
     ``,
     `Each program attaches to the browser, runs, and detaches. Page state (tabs,`,
     `cookies, scroll) belongs to that browser and persists; snapshot refs do not,`,
@@ -192,7 +193,16 @@ export async function executeBrowserRun(
     run = runProgram,
   }: ToolDeps,
   { code, cdpUrl, timeoutMs }: RunInput,
-  { signal, notify = () => {} }: { signal?: AbortSignal | undefined; notify?: Notify } = {},
+  {
+    signal,
+    notify = () => {},
+    label,
+  }: {
+    signal?: AbortSignal | undefined;
+    notify?: Notify;
+    /** Names the browser in the output instead of its CDP URL, which is a credential. */
+    label?: string | undefined;
+  } = {},
 ): Promise<RunOutput> {
   const allow = config.allowCommands.length > 0 ? config.allowCommands : undefined;
   const deny = config.denyCommands.length > 0 ? config.denyCommands : undefined;
@@ -255,8 +265,8 @@ export async function executeBrowserRun(
     });
 
     return {
-      text: renderResult(result, endpoint),
-      structuredContent: toStructuredContent(result, endpoint),
+      text: renderResult(result, label ?? endpoint),
+      structuredContent: toStructuredContent(result, endpoint, label),
       isError: result.status !== "completed",
     };
   } finally {
@@ -265,6 +275,20 @@ export async function executeBrowserRun(
     } finally {
       if (!cdpUrl) await provider.shutdown(lease);
     }
+  }
+}
+
+/** Attach, take one JPEG of the current page, detach. Returns base64. */
+export async function captureScreenshot(
+  cdpUrl: string,
+  { connect = connectOverCdp, signal }: { connect?: ToolDeps["connect"]; signal?: AbortSignal | undefined } = {},
+): Promise<string> {
+  const session = await connect({ cdpUrl, ...(signal ? { signal } : {}) });
+  try {
+    const result = (await session.run("screenshot", { type: "jpeg", quality: 70 })) as { base64: string };
+    return result.base64;
+  } finally {
+    await session.close();
   }
 }
 
@@ -314,10 +338,11 @@ function renderResult(result: ProgramResult, endpoint: string): string {
 function toStructuredContent(
   result: ProgramResult,
   endpoint: string,
+  label: string | undefined,
 ): Record<string, unknown> {
   return {
     status: result.status,
-    cdpUrl: endpoint,
+    ...(label ? { browser: label } : { cdpUrl: endpoint }),
     durationMs: result.durationMs,
     ...(result.status === "completed" ? { value: result.value } : {}),
     ...(result.error ? { error: result.error } : {}),

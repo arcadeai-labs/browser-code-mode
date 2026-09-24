@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createApp } from "../src/app.ts";
-import { loadConfig } from "../src/config.ts";
-import { browserProvider, staticProvider } from "../src/browse/provider.ts";
-import { providerFromEnv } from "../src/browse/providers.ts";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { createApp } from "../src/app.ts";
+import { browserProvider, staticProvider } from "../src/browse/provider.ts";
+import { providerFromEnv } from "../src/browse/providers.ts";
+import { loadConfig } from "../src/config.ts";
 import { createMcpServer } from "../src/mcp/server.ts";
 
 test("provider shutdown still runs when CDP disconnect throws", async () => {
@@ -13,10 +13,18 @@ test("provider shutdown still runs when CDP disconnect throws", async () => {
   const server = createMcpServer({
     config: loadConfig(),
     provider: browserProvider({
-      name: "test", create: async () => ({ cdpUrl: "wss://example.test" }),
-      shutdown: async () => { stopped = true; },
+      name: "test",
+      create: async () => ({ cdpUrl: "wss://example.test" }),
+      shutdown: async () => {
+        stopped = true;
+      },
     }),
-    connect: async () => ({ run: async () => null, close: async () => { throw new Error("disconnect failed"); } }),
+    connect: async () => ({
+      run: async () => null,
+      close: async () => {
+        throw new Error("disconnect failed");
+      },
+    }),
   });
   const client = new Client({ name: "cleanup-test", version: "1" });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -26,11 +34,14 @@ test("provider shutdown still runs when CDP disconnect throws", async () => {
     const result = await client.callTool({ name: "browser_run", arguments: { code: "return 1;" } });
     assert.equal(result.isError, true);
     assert.equal(stopped, true);
-  } finally { await client.close(); await server.close(); }
+  } finally {
+    await client.close();
+    await server.close();
+  }
 });
 
 test("a serialized handle can be shut down on a fresh instance", async () => {
-  const stopped: string[] = [];
+  const stopped: Array<string | undefined> = [];
   const provider = () =>
     browserProvider({
       name: "test",
@@ -39,13 +50,11 @@ test("a serialized handle can be shut down on a fresh instance", async () => {
         cdpUrl: "wss://browser.example/session-1",
       }),
       shutdown: async (browser) => {
-        stopped.push(browser.sessionId!);
+        stopped.push(browser.sessionId);
       },
     });
   const create = createApp({ config: loadConfig(), provider: provider() });
-  const result = await create.fetch(
-    new Request("http://test/browser", { method: "POST" }),
-  );
+  const result = await create.fetch(new Request("http://test/browser", { method: "POST" }));
   assert.equal(result.status, 201);
   const handle = await result.json();
   const fresh = createApp({ config: loadConfig(), provider: provider() });
@@ -101,10 +110,8 @@ for (const name of ["kernel", "browserbase"]) {
     const body = JSON.parse(String(calls[0]?.init?.body));
     assert.equal(name === "kernel" ? body.timeout_seconds : body.timeout, 600);
     if (name === "browserbase") assert.equal(body.keepAlive, true);
-    await providerFromEnv(env, request).shutdown(
-      JSON.parse(JSON.stringify(handle)),
-    );
-    assert.match(calls[1]!.url, /\/one$/);
+    await providerFromEnv(env, request).shutdown(JSON.parse(JSON.stringify(handle)));
+    assert.match(calls[1]?.url ?? "", /\/one$/);
     assert.equal(calls[1]?.init?.method, name === "kernel" ? "DELETE" : "POST");
   });
 }

@@ -12,7 +12,7 @@ import { test } from "node:test";
 import { z } from "zod";
 
 import { BrowserSession } from "../src/browse/driver.ts";
-import { runProgram, type ProgramResult } from "../src/sandbox/runner.ts";
+import { type ProgramResult, runProgram } from "../src/sandbox/runner.ts";
 
 const enabled = process.env.BROWSE_E2E === "1";
 const CDP_URL = process.env.BROWSE_CDP_URL ?? "9222";
@@ -27,7 +27,9 @@ async function run(code: string): Promise<ProgramResult> {
   }
 }
 
-test("a program drives a real browser and returns only its result", { skip: !enabled }, async () => {
+test("a program drives a real browser and returns only its result", {
+  skip: !enabled,
+}, async () => {
   const result = await run(`
     await browse.open("https://example.com");
     const { tree } = await browse.snapshot();

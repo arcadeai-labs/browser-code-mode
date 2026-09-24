@@ -11,20 +11,19 @@
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-
+import { renderApiDts } from "../browse/dts.ts";
 import {
   API_TOOL_DESCRIPTION,
-  INSTRUCTIONS,
   executeBrowserRun,
+  INSTRUCTIONS,
   renderBrowserApi,
   renderGuide,
   runInputShape,
   runToolDescription,
   type ToolDeps,
 } from "../core.ts";
-import { renderApiDts } from "../browse/dts.ts";
 
-export { EXAMPLE_PROGRAM, type Connection } from "../core.ts";
+export { type Connection, EXAMPLE_PROGRAM } from "../core.ts";
 
 export const SERVER_NAME = "browse-code-mode";
 export const SERVER_VERSION = "0.1.0";

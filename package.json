@@ -10,8 +10,10 @@
   "packageManager": "pnpm@11.10.0",
   "scripts": {
     "build": "pnpm -r build",
-    "check": "pnpm -r check",
-    "lint": "biome lint",
+    "check": "pnpm lint && pnpm -r check",
+    "lint": "biome check --error-on-warnings .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
     "test": "pnpm -r --if-present test",
     "test:e2e": "pnpm --filter @browse-code-mode/mcp-server test:e2e",
     "dev": "node scripts/dev.mjs",
@@ -19,12 +21,17 @@
     "dev:server": "pnpm --filter @browse-code-mode/mcp-server dev",
     "dev:web": "pnpm --filter @browse-code-mode/web dev",
     "chrome": "node scripts/chrome.mjs",
-    "example": "node scripts/example.mjs"
+    "example": "node scripts/example.mjs",
+    "prepare": "simple-git-hooks"
+  },
+  "simple-git-hooks": {
+    "pre-push": "pnpm lint"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.14",
+    "@biomejs/biome": "2.5.14",
     "@types/node": "^22.19.0",
-    "biome-plugin-no-type-assertion": "^1.1.1",
+    "biome-plugin-no-type-assertion": "1.1.1",
+    "simple-git-hooks": "2.14.0",
     "typescript": "^5.9.3"
   }
 }

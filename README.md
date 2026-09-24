@@ -260,7 +260,7 @@ MCP bearer authentication protects the backend; it is not web-user authenticatio
 ## Validation
 
 ```sh
-pnpm lint   # Biome, with biome-plugin-no-type-assertion: no `as` casts
+pnpm lint   # Biome: format, recommended rules, and biome-plugin-no-type-assertion (no `as` casts)
 pnpm check
 pnpm test
 pnpm build
@@ -268,6 +268,13 @@ pnpm --filter @browse-code-mode/mcp-server test:runtime
 pnpm --filter @browse-code-mode/mcp-server test:worker
 pnpm test:e2e  # existing browser on BROWSE_CDP_URL or port 9222
 ```
+
+`pnpm check` runs [Biome](https://biomejs.dev) (lint, formatting, import order)
+before type-checking every package. `pnpm lint:fix` applies Biome's safe fixes
+and formatting; `pnpm format` only formats. Biome warnings fail the check.
+
+`pnpm install` adds a pre-push hook that runs `pnpm lint`, and CI runs the same
+check on every pull request. Set `SKIP_SIMPLE_GIT_HOOKS=1` to skip the hook.
 
 The runtime suites start an isolated Chrome and exercise real MCP execution,
 TypeScript, snapshot-ref clicks, loop interruption, screenshots, and lifecycle

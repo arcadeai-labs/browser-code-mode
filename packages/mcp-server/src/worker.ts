@@ -1,23 +1,15 @@
-import {
-  newVariant,
-  newQuickJSWASMModuleFromVariant,
-} from "quickjs-emscripten-core";
-import { quickjsVariant } from "./sandbox/variant.ts";
+import { newQuickJSWASMModuleFromVariant, newVariant } from "quickjs-emscripten-core";
 import wasmModule from "../node_modules/@jitl/quickjs-wasmfile-release-sync/dist/emscripten-module.wasm";
 import { createApp } from "./app.ts";
-import { loadConfig } from "./config.ts";
 import { BrowserSession } from "./browse/driver.ts";
-import { createProgramRunner } from "./sandbox/runner.ts";
-import type { OpenSocket } from "./browse/transport.ts";
 import { providerFromEnv } from "./browse/providers.ts";
+import type { OpenSocket } from "./browse/transport.ts";
+import { loadConfig } from "./config.ts";
+import { createProgramRunner } from "./sandbox/runner.ts";
+import { quickjsVariant } from "./sandbox/variant.ts";
 
 const run = createProgramRunner(() =>
-  newQuickJSWASMModuleFromVariant(
-    newVariant(
-      quickjsVariant,
-      { wasmModule },
-    ),
-  ),
+  newQuickJSWASMModuleFromVariant(newVariant(quickjsVariant, { wasmModule })),
 );
 
 const openSocket: OpenSocket = async (url, signal) => {
@@ -32,12 +24,12 @@ const openSocket: OpenSocket = async (url, signal) => {
 };
 
 export function createConfiguredApp(env: Record<string, string | undefined>) {
-    return createApp({
-      config: loadConfig({ ...env }),
-      run,
-      provider: providerFromEnv({ ...env }),
-      connect: (options) => BrowserSession.connect({ ...options, openSocket }),
-    });
+  return createApp({
+    config: loadConfig({ ...env }),
+    run,
+    provider: providerFromEnv({ ...env }),
+    connect: (options) => BrowserSession.connect({ ...options, openSocket }),
+  });
 }
 
 export default {

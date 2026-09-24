@@ -10,17 +10,16 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { Hono } from "hono";
 import { z } from "zod";
-import { staticProvider } from "./browse/provider.ts";
 import { BrowserSession } from "./browse/driver.ts";
-import { captureScreenshot } from "./core.ts";
-
-import { renderApiDts, renderCheatsheet, PROGRAM_GUIDE } from "./browse/dts.ts";
+import { PROGRAM_GUIDE, renderApiDts, renderCheatsheet } from "./browse/dts.ts";
+import { staticProvider } from "./browse/provider.ts";
 import type { ServerConfig } from "./config.ts";
+import { captureScreenshot } from "./core.ts";
 import {
+  type CreateServerOptions,
   createMcpServer,
   SERVER_NAME,
   SERVER_VERSION,
-  type CreateServerOptions,
 } from "./mcp/server.ts";
 
 export interface AppDeps {
@@ -48,9 +47,21 @@ export function createApp({
   app.onError((error, c) => {
     if (c.req.raw.signal.aborted) return new Response(null, { status: 499 });
     if (error.name === "NoBrowserError")
-      return c.json({ error: "No browser configured. Run pnpm dev locally, or configure BROWSE_PROVIDER and its credentials." }, 503);
+      return c.json(
+        {
+          error:
+            "No browser configured. Run pnpm dev locally, or configure BROWSE_PROVIDER and its credentials.",
+        },
+        503,
+      );
     log(`Browser operation failed: ${error.message}`);
-    return c.json({ error: "Browser operation failed. Check the server logs and browser provider configuration." }, 500);
+    return c.json(
+      {
+        error:
+          "Browser operation failed. Check the server logs and browser provider configuration.",
+      },
+      500,
+    );
   });
 
   // ---------------------------------------------------------------- middleware
@@ -84,11 +95,8 @@ export function createApp({
   });
 
   app.delete("/browser", async (c) => {
-    const parsed = browserHandleSchema.safeParse(
-      await c.req.json().catch(() => null),
-    );
-    if (!parsed.success)
-      return c.json({ error: "A browser handle is required." }, 400);
+    const parsed = browserHandleSchema.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: "A browser handle is required." }, 400);
     if (parsed.data.provider !== provider.name)
       return c.json({ error: "Wrong browser provider." }, 400);
     await provider.shutdown(parsed.data);
@@ -98,8 +106,7 @@ export function createApp({
   app.post("/screen", async (c) => {
     const body = screenBodySchema.safeParse(await c.req.json().catch(() => ({})));
     const endpoint = body.success ? (body.data.cdpUrl ?? config.defaultCdpUrl) : undefined;
-    if (!endpoint)
-      return c.json({ error: "cdpUrl is required." }, 400);
+    if (!endpoint) return c.json({ error: "cdpUrl is required." }, 400);
     const base64 = await captureScreenshot(endpoint, {
       ...(connect ? { connect } : {}),
       signal: c.req.raw.signal,
@@ -127,11 +134,7 @@ export function createApp({
   /** Inspect any local or hosted CDP browser without HTTP discovery endpoints. */
   app.get("/browser", async (c) => {
     const endpoint = c.req.query("cdpUrl") ?? config.defaultCdpUrl;
-    if (!endpoint)
-      return c.json(
-        { error: "No cdpUrl given and no default configured." },
-        400,
-      );
+    if (!endpoint) return c.json({ error: "No cdpUrl given and no default configured." }, 400);
 
     try {
       const session = await (connect ?? BrowserSession.connect)({
@@ -146,10 +149,7 @@ export function createApp({
         await session.close();
       }
     } catch (error) {
-      return c.json(
-        { error: error instanceof Error ? error.message : String(error) },
-        502,
-      );
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 502);
     }
   });
 
@@ -178,8 +178,7 @@ export function createApp({
           jsonrpc: "2.0",
           error: {
             code: -32000,
-            message:
-              "This server is stateless. Send requests as POSTs; no session is kept.",
+            message: "This server is stateless. Send requests as POSTs; no session is kept.",
           },
           id: null,
         },
@@ -187,15 +186,12 @@ export function createApp({
       );
     }
 
+    const cdpUrl = c.req.header("x-browse-cdp-url");
     const server = createMcpServer({
-      config: c.req.header("x-browse-cdp-url")
-        ? { ...config, defaultCdpUrl: c.req.header("x-browse-cdp-url")! }
-        : config,
+      config: cdpUrl ? { ...config, defaultCdpUrl: cdpUrl } : config,
       ...(run ? { run } : {}),
       ...(connect ? { connect } : {}),
-      provider: c.req.header("x-browse-cdp-url")
-        ? staticProvider(c.req.header("x-browse-cdp-url"))
-        : provider,
+      provider: cdpUrl ? staticProvider(cdpUrl) : provider,
     });
     // No `sessionIdGenerator`: the transport runs in stateless mode.
     const transport = new WebStandardStreamableHTTPServerTransport();
@@ -267,9 +263,7 @@ async function closeQuietly(
 }
 
 function exposedOption(config: ServerConfig): { exposed?: readonly string[] } {
-  return config.allowCommands.length > 0
-    ? { exposed: config.allowCommands }
-    : {};
+  return config.allowCommands.length > 0 ? { exposed: config.allowCommands } : {};
 }
 
 /** Constant-time-ish comparison, to keep token checks from leaking length. */

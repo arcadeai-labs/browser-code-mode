@@ -6,10 +6,10 @@
  */
 
 import { anthropic } from "@ai-sdk/anthropic";
-import { generateText, stepCountIs } from "ai";
+import { localProvider } from "@browse-code-mode/mcp-server/local-browser";
 import { browserTools, instructions } from "@browse-code-mode/tools/ai-sdk";
 import { providerBrowser } from "@browse-code-mode/tools/browser";
-import { localProvider } from "@browse-code-mode/mcp-server/local-browser";
+import { generateText, stepCountIs } from "ai";
 
 const prompt = process.argv[2] ?? "What's the weather in San Francisco right now?";
 

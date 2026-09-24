@@ -18,9 +18,13 @@
   --error: #ff6b6b;
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
-html, body, #app {
+html,
+body,
+#app {
   height: 100%;
   margin: 0;
   /* Only the message list scrolls. Without this a wide code block in a tool
@@ -31,7 +35,12 @@ html, body, #app {
 body {
   background: var(--bg);
   color: var(--text);
-  font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font:
+    14px / 1.5 ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
 }
 
 .split {
@@ -92,8 +101,15 @@ body {
   gap: 14px;
 }
 
-.msg { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.msg-user { align-items: flex-end; }
+.msg {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.msg-user {
+  align-items: flex-end;
+}
 
 .bubble {
   max-width: 92%;
@@ -103,8 +119,12 @@ body {
   overflow-wrap: anywhere;
 }
 
-.msg-user .bubble { background: #1e2a3d; }
-.msg-assistant .bubble { background: #17171a; }
+.msg-user .bubble {
+  background: #1e2a3d;
+}
+.msg-assistant .bubble {
+  background: #17171a;
+}
 
 /* Streamdown emits real block elements, so .bubble's `pre-wrap` would turn
    every source newline into a visible break and double the spacing. Streamdown
@@ -113,8 +133,12 @@ body {
   white-space: normal;
 }
 
-.markdown > :first-child { margin-top: 0; }
-.markdown > :last-child { margin-bottom: 0; }
+.markdown > :first-child {
+  margin-top: 0;
+}
+.markdown > :last-child {
+  margin-bottom: 0;
+}
 
 /* A wide table or code fence scrolls itself rather than widening the column. */
 .markdown table,
@@ -142,7 +166,9 @@ body {
   font: inherit;
 }
 
-.composer textarea:focus { outline: 1px solid var(--accent); }
+.composer textarea:focus {
+  outline: 1px solid var(--accent);
+}
 
 .composer button {
   align-self: flex-end;
@@ -155,7 +181,10 @@ body {
   cursor: pointer;
 }
 
-.composer button:disabled { opacity: 0.5; cursor: default; }
+.composer button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
 
 .error {
   margin: 0 16px 12px;

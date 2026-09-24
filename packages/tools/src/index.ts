@@ -7,36 +7,36 @@
  * `./ai-sdk` and `./mastra` wrap this toolkit in each framework's tool type.
  */
 
-import { z } from "zod";
 import {
   API_TOOL_DESCRIPTION,
-  INSTRUCTIONS,
+  type BrowserProvider,
   executeBrowserRun,
+  INSTRUCTIONS,
   loadConfig,
   providerFromEnv,
   renderBrowserApi,
   runInputShape,
   runToolDescription,
   staticProvider,
-  type BrowserProvider,
   type ToolDeps,
 } from "@browse-code-mode/mcp-server/core";
+import { z } from "zod";
 
 import type { Browser, BrowserSession, LiveView } from "./browser.ts";
 
 export {
+  type BrowserHandle,
+  type BrowserProvider,
   browserProvider,
   providerFromEnv,
   staticProvider,
-  type BrowserHandle,
-  type BrowserProvider,
 } from "@browse-code-mode/mcp-server/core";
 export {
-  providerBrowser,
   type Browser,
   type BrowserSession,
   type LiveView,
   type ProviderBrowser,
+  providerBrowser,
 } from "./browser.ts";
 
 export interface BrowserToolsOptions {
@@ -112,12 +112,16 @@ export function createBrowserToolkit(options: BrowserToolsOptions = {}) {
     ...(options.connect ? { connect: options.connect } : {}),
     ...(options.run ? { run: options.run } : {}),
   };
-  const notify = options.onEvent
-    ? (level: BrowserEvent["level"], data: unknown) => options.onEvent!({ level, data })
+  const { onEvent } = options;
+  const notify = onEvent
+    ? (level: BrowserEvent["level"], data: unknown) => onEvent({ level, data })
     : undefined;
 
   const sessionIdInput = z.object({
-    sessionId: z.string().min(1).describe("A session id from `browser_start` or `browser_list_sessions`."),
+    sessionId: z
+      .string()
+      .min(1)
+      .describe("A session id from `browser_start` or `browser_list_sessions`."),
   });
   const runShape = runInputShape(config);
   const runInputSchema = browser
@@ -163,7 +167,12 @@ export function createBrowserToolkit(options: BrowserToolsOptions = {}) {
           const session = sessionId ? sessions.find((s) => s.id === sessionId) : sessions.at(-1);
           if (sessionId && !session) {
             const text = `Unknown browser session: ${sessionId}. Call browser_list_sessions for the open ones.`;
-            return { text, isError: true, status: "failed", error: { name: "Error", message: text } };
+            return {
+              text,
+              isError: true,
+              status: "failed",
+              error: { name: "Error", message: text },
+            };
           }
           if (session) input.cdpUrl = session.cdpUrl;
           label = session ? `session ${session.id}` : "temporary session";
@@ -212,8 +221,10 @@ export function createBrowserToolkit(options: BrowserToolsOptions = {}) {
               "See a browser session as it is now: a screenshot of the current page, " +
               "plus a URL a person can open to watch it live when the provider has one.",
             inputSchema: sessionIdInput,
-            execute: ({ sessionId }: { sessionId: string }, signal?: AbortSignal): Promise<LiveView> =>
-              browser.liveView(sessionId, signal ? { signal } : {}),
+            execute: (
+              { sessionId }: { sessionId: string },
+              signal?: AbortSignal,
+            ): Promise<LiveView> => browser.liveView(sessionId, signal ? { signal } : {}),
           },
         }
       : undefined,
@@ -232,7 +243,7 @@ function temporarySessions(browser: Browser): BrowserProvider {
       return { provider: session.provider, cdpUrl: session.cdpUrl, sessionId: session.id };
     },
     async shutdown(handle) {
-      await browser.stop(handle.sessionId!);
+      if (handle.sessionId) await browser.stop(handle.sessionId);
     },
   };
 }
@@ -251,8 +262,17 @@ export function liveViewModelOutput({ url, screenshot }: LiveView) {
   return {
     type: "content" as const,
     value: [
-      { type: "text" as const, text: url ? `Live view: ${url}` : "No live view URL for this session; screenshot of the current page:" },
-      { type: "file" as const, mediaType: screenshot.mediaType, data: { type: "data" as const, data: screenshot.base64 } },
+      {
+        type: "text" as const,
+        text: url
+          ? `Live view: ${url}`
+          : "No live view URL for this session; screenshot of the current page:",
+      },
+      {
+        type: "file" as const,
+        mediaType: screenshot.mediaType,
+        data: { type: "data" as const, data: screenshot.base64 },
+      },
     ],
   };
 }

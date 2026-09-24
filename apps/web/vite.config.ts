@@ -1,12 +1,11 @@
-import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
-
-import { defineConfig, loadEnv } from "vite";
-import react from "@vitejs/plugin-react";
+import { fileURLToPath } from "node:url";
+import { cloudflare } from "@cloudflare/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
-import { cloudflare } from "@cloudflare/vite-plugin";
+import react from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
+import { defineConfig, loadEnv } from "vite";
 
 const workspaceRoot = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -21,28 +20,36 @@ export default defineConfig(({ mode, command }) => {
 
   return {
     resolve: {
-      alias: [{
-        find: "@browse-code-mode/mcp-server/runtime",
-        replacement: mode === "cloudflare"
-          ? "@browse-code-mode/mcp-server/worker-runtime"
-          : "@browse-code-mode/mcp-server/bundled-runtime",
-      }],
+      alias: [
+        {
+          find: "@browse-code-mode/mcp-server/runtime",
+          replacement:
+            mode === "cloudflare"
+              ? "@browse-code-mode/mcp-server/worker-runtime"
+              : "@browse-code-mode/mcp-server/bundled-runtime",
+        },
+      ],
     },
     server: { port: 3000, strictPort: true },
     plugins: [
       {
         name: "browse-node-wasm",
-        resolveId(id) { if (id === "virtual:browse-wasm") return "\0browse-wasm"; },
+        resolveId(id) {
+          if (id === "virtual:browse-wasm") return "\0browse-wasm";
+        },
         load(id) {
           if (id !== "\0browse-wasm") return;
-          const binary = readFileSync(new URL("../../packages/mcp-server/node_modules/@jitl/quickjs-wasmfile-release-sync/dist/emscripten-module.wasm", import.meta.url));
+          const binary = readFileSync(
+            new URL(
+              "../../packages/mcp-server/node_modules/@jitl/quickjs-wasmfile-release-sync/dist/emscripten-module.wasm",
+              import.meta.url,
+            ),
+          );
           return `export default Uint8Array.from(atob(${JSON.stringify(binary.toString("base64"))}), c => c.charCodeAt(0)).buffer;`;
         },
       },
       tailwindcss(),
-      ...(mode === "cloudflare"
-        ? [cloudflare({ viteEnvironment: { name: "ssr" } })]
-        : []),
+      ...(mode === "cloudflare" ? [cloudflare({ viteEnvironment: { name: "ssr" } })] : []),
       tanstackStart(),
       ...(mode === "cloudflare" || command !== "build"
         ? []

@@ -10,9 +10,8 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import { dynamicTool, jsonSchema, type ToolSet } from "ai";
 import { z } from "zod";
-
-import { mcpHeaders } from "./env.ts";
 import { fetchBrowserApp } from "./browser-app.ts";
+import { mcpHeaders } from "./env.ts";
 
 const toolArgumentsSchema = z.record(z.unknown());
 

@@ -1,14 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import {
-  buildParams,
-  COMMANDS,
-  findCommand,
-  WIRE_COMMANDS,
-} from "../src/browse/commands.ts";
-import { formatCall } from "../src/browse/host-functions.ts";
+import { buildParams, COMMANDS, findCommand, WIRE_COMMANDS } from "../src/browse/commands.ts";
 import { renderApiDts, renderCheatsheet } from "../src/browse/dts.ts";
+import { formatCall } from "../src/browse/host-functions.ts";
 
 test("every driver command is reachable from the sandbox", () => {
   const wired = new Set(COMMANDS.map((spec) => spec.wire));
@@ -93,7 +88,12 @@ test("optional arguments may be omitted", () => {
 test("calls render as the shell command they stand for", () => {
   const cases: Array<[string, string, unknown[], string]> = [
     ["browse", "click", ["@0-12"], "browse click @0-12"],
-    ["browse", "fill", ["#q", "hi there", { pressEnter: true }], 'browse fill #q "hi there" --press-enter'],
+    [
+      "browse",
+      "fill",
+      ["#q", "hi there", { pressEnter: true }],
+      'browse fill #q "hi there" --press-enter',
+    ],
     ["browse", "snapshot", [{ maxDepth: 4 }], "browse snapshot --max-depth 4"],
     ["mouse", "scroll", [10, 20, 0, 600], "browse mouse scroll 10 20 0 600"],
     ["tab", "list", [], "browse tab list"],

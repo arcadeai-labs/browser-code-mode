@@ -1,9 +1,9 @@
 /** Node-only dev lifecycle. Never import this from a deployed fetch handler. */
-import { spawn, type ChildProcess } from "node:child_process";
+import { type ChildProcess, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { createServer } from "node:net";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 import type { BrowserHandle, BrowserProvider } from "../browse/provider.ts";
@@ -32,11 +32,7 @@ function findChrome(): string {
         ]
       : process.platform === "win32"
         ? ["C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"]
-        : [
-            "/usr/bin/google-chrome",
-            "/usr/bin/chromium",
-            "/usr/bin/chromium-browser",
-          ];
+        : ["/usr/bin/google-chrome", "/usr/bin/chromium", "/usr/bin/chromium-browser"];
   const executable = candidates.find(existsSync);
   if (!executable) throw new Error("Chrome not found. Set CHROME_PATH.");
   return executable;
@@ -58,17 +54,14 @@ export async function createLocalBrowser({
   headless?: boolean;
   signal?: AbortSignal;
 } = {}): Promise<LocalBrowser> {
-  if (!Number.isInteger(port) || port < 1 || port > 65535)
-    throw new Error("Invalid CHROME_PORT.");
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("Invalid CHROME_PORT.");
   signal?.throwIfAborted();
   const browser = { provider: "cdp", cdpUrl: String(port) };
-  if (await cdpReady(port))
-    return { browser, owned: false, async shutdown() {} };
+  if (await cdpReady(port)) return { browser, owned: false, async shutdown() {} };
   const executable = findChrome();
   const temporary = !process.env.CHROME_USER_DATA_DIR;
   const profile =
-    process.env.CHROME_USER_DATA_DIR ??
-    (await mkdtemp(join(tmpdir(), "browse-cdp-")));
+    process.env.CHROME_USER_DATA_DIR ?? (await mkdtemp(join(tmpdir(), "browse-cdp-")));
   const child = spawn(
     executable,
     [
@@ -94,11 +87,7 @@ export async function createLocalBrowser({
   let shutdownPromise: Promise<void> | undefined;
   const shutdown = (): Promise<void> =>
     (shutdownPromise ??= (async () => {
-      if (
-        child.exitCode === null &&
-        child.signalCode === null &&
-        !launchError
-      ) {
+      if (child.exitCode === null && child.signalCode === null && !launchError) {
         child.kill("SIGTERM");
         const timer = setTimeout(() => child.kill("SIGKILL"), 3000);
         await exited;
@@ -114,8 +103,7 @@ export async function createLocalBrowser({
       if (launchError) throw launchError;
       if (child.exitCode !== null || child.signalCode !== null)
         throw new Error("Chrome exited before CDP was ready.");
-      if (await cdpReady(port))
-        return { browser, owned: true, process: child, shutdown };
+      if (await cdpReady(port)) return { browser, owned: true, process: child, shutdown };
       await new Promise((resolve) => setTimeout(resolve, 150));
     }
     throw new Error(`Chrome did not expose CDP on ${port}.`);
@@ -135,13 +123,20 @@ export async function createLocalBrowser({
 export function localProvider({
   port = Number(process.env.CHROME_PORT ?? 9222),
   headless = process.env.CHROME_HEADLESS !== "0",
-}: { port?: number; headless?: boolean } = {}): BrowserProvider {
+}: {
+  port?: number;
+  headless?: boolean;
+} = {}): BrowserProvider {
   const running = new Map<string, LocalBrowser>();
   return {
     name: "local",
     async create({ signal } = {}) {
       const target = running.has(String(port)) ? await freePort() : port;
-      const local = await createLocalBrowser({ port: target, headless, ...(signal ? { signal } : {}) });
+      const local = await createLocalBrowser({
+        port: target,
+        headless,
+        ...(signal ? { signal } : {}),
+      });
       running.set(local.browser.cdpUrl, local);
       return { provider: "local", cdpUrl: local.browser.cdpUrl, sessionId: local.browser.cdpUrl };
     },

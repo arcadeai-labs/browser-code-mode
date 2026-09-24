@@ -10,7 +10,12 @@ export const quickjsVariant: QuickJSSyncVariant = unwrapVariant(variantExport);
 
 function unwrapVariant(value: unknown): QuickJSSyncVariant {
   if (isSyncVariant(value)) return value;
-  if (typeof value === "object" && value !== null && "default" in value && isSyncVariant(value.default)) {
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "default" in value &&
+    isSyncVariant(value.default)
+  ) {
     return value.default;
   }
   throw new Error("@jitl/quickjs-wasmfile-release-sync did not export a sync QuickJS variant.");

@@ -23,8 +23,8 @@
  */
 
 import {
-  captureScreenshot,
   type BrowserProvider,
+  captureScreenshot,
   type ToolDeps,
 } from "@browse-code-mode/mcp-server/core";
 

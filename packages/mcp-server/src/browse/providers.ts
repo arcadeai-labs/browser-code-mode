@@ -1,18 +1,11 @@
 /** Hosted lifecycles use fetch only and retain no process-local session state. */
 import { z } from "zod";
-import {
-  browserProvider,
-  staticProvider,
-  type BrowserProvider,
-} from "./provider.ts";
+import { type BrowserProvider, browserProvider, staticProvider } from "./provider.ts";
 
 type Env = Record<string, string | undefined>;
 type Fetch = typeof fetch;
 
-export function providerFromEnv(
-  env: Env,
-  request: Fetch = fetch,
-): BrowserProvider {
+export function providerFromEnv(env: Env, request: Fetch = fetch): BrowserProvider {
   const name = env.BROWSE_PROVIDER ?? "cdp";
   if (name === "cdp") return staticProvider(env.BROWSE_CDP_URL);
   const timeout = Number(env.BROWSER_TIMEOUT_SECONDS ?? 600);
@@ -40,15 +33,13 @@ export function providerFromEnv(
         : AbortSignal.timeout(30_000),
     });
     if (deleting && [404, 410].includes(response.status)) return null;
-    if (!response.ok)
-      throw new Error(`${name} ${method} failed (HTTP ${response.status}).`);
+    if (!response.ok) throw new Error(`${name} ${method} failed (HTTP ${response.status}).`);
     if (response.status === 204) return null;
     return z.record(z.unknown()).parse(await response.json());
   };
   const field = (data: Record<string, unknown> | null, key: string): string => {
     const value = data?.[key];
-    if (typeof value !== "string" || !value)
-      throw new Error(`${name} returned no ${key}.`);
+    if (typeof value !== "string" || !value) throw new Error(`${name} returned no ${key}.`);
     return value;
   };
   if (name === "browserbase") {
@@ -61,9 +52,7 @@ export function providerFromEnv(
           "POST",
           headers,
           {
-            ...(env.BROWSERBASE_PROJECT_ID
-              ? { projectId: env.BROWSERBASE_PROJECT_ID }
-              : {}),
+            ...(env.BROWSERBASE_PROJECT_ID ? { projectId: env.BROWSERBASE_PROJECT_ID } : {}),
             keepAlive: true,
             timeout,
           },
@@ -75,8 +64,7 @@ export function providerFromEnv(
         };
       },
       async shutdown(browser) {
-        if (!browser.sessionId)
-          throw new Error("Browserbase sessionId is required.");
+        if (!browser.sessionId) throw new Error("Browserbase sessionId is required.");
         await api(
           `https://api.browserbase.com/v1/sessions/${encodeURIComponent(browser.sessionId)}`,
           "POST",
@@ -109,8 +97,7 @@ export function providerFromEnv(
         };
       },
       async shutdown(browser) {
-        if (!browser.sessionId)
-          throw new Error("Kernel sessionId is required.");
+        if (!browser.sessionId) throw new Error("Kernel sessionId is required.");
         await api(
           `https://api.onkernel.com/browsers/${encodeURIComponent(browser.sessionId)}`,
           "DELETE",

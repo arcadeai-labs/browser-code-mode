@@ -106,7 +106,8 @@ export async function serveHardPages(): Promise<HardPages> {
   // Listen on all loopback names so both 127.0.0.1 and localhost resolve.
   await new Promise<void>((resolve) => server.listen(0, resolve));
   const address = server.address();
-  if (address === null || typeof address === "string") throw new Error("Fixture server has no TCP port.");
+  if (address === null || typeof address === "string")
+    throw new Error("Fixture server has no TCP port.");
   port = address.port;
   return {
     url: `http://127.0.0.1:${port}/`,

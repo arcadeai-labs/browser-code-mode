@@ -6,21 +6,28 @@ import { runProgram } from "../src/sandbox/runner.ts";
 import { createFakeBrowser, echoHandler } from "./helpers/fake-browser.ts";
 
 test("TypeScript is stripped inside the sandbox boundary", async () => {
-  const result = await runProgram({ code: "const value: number = 42; return value;", session: createFakeBrowser() });
+  const result = await runProgram({
+    code: "const value: number = 42; return value;",
+    session: createFakeBrowser(),
+  });
   assert.equal(result.value, 42);
 });
 
 test("a timeout disposes pending host promises without crashing the runtime", async () => {
   const result = await runProgram({
     code: 'return await browse.get("url");',
-    session: createFakeBrowser(() => new Promise(() => {})), limits: { timeoutMs: 30 },
+    session: createFakeBrowser(() => new Promise(() => {})),
+    limits: { timeoutMs: 30 },
   });
   assert.equal(result.status, "failed");
   assert.equal(result.error?.name, "RunTimeoutError");
 });
 
 test("host prototype members are not sandbox capabilities", async () => {
-  const result = await runProgram({ code: 'return await __host("constructor", "constructor", "[]");', session: createFakeBrowser() });
+  const result = await runProgram({
+    code: 'return await __host("constructor", "constructor", "[]");',
+    session: createFakeBrowser(),
+  });
   assert.equal(result.status, "failed");
   assert.match(result.error?.message ?? "", /Unknown host function/);
 });

@@ -2,7 +2,7 @@ import {
   newVariant,
   newQuickJSWASMModuleFromVariant,
 } from "quickjs-emscripten-core";
-import variant from "@jitl/quickjs-wasmfile-release-sync";
+import { quickjsVariant } from "./sandbox/variant.ts";
 import wasmModule from "../node_modules/@jitl/quickjs-wasmfile-release-sync/dist/emscripten-module.wasm";
 import { createApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
@@ -14,10 +14,7 @@ import { providerFromEnv } from "./browse/providers.ts";
 const run = createProgramRunner(() =>
   newQuickJSWASMModuleFromVariant(
     newVariant(
-      variant as unknown as Exclude<
-        Awaited<Parameters<typeof newQuickJSWASMModuleFromVariant>[0]>,
-        { default: unknown }
-      >,
+      quickjsVariant,
       { wasmModule },
     ),
   ),

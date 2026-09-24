@@ -1,5 +1,5 @@
 import { newVariant, newQuickJSWASMModuleFromVariant } from "quickjs-emscripten-core";
-import variant from "@jitl/quickjs-wasmfile-release-sync";
+import { quickjsVariant } from "./sandbox/variant.ts";
 import wasmBinary from "virtual:browse-wasm";
 import { createApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
@@ -7,7 +7,7 @@ import { providerFromEnv } from "./browse/providers.ts";
 import { createProgramRunner } from "./sandbox/runner.ts";
 
 const run = createProgramRunner(() => newQuickJSWASMModuleFromVariant(newVariant(
-  variant as unknown as Exclude<Awaited<Parameters<typeof newQuickJSWASMModuleFromVariant>[0]>, { default: unknown }>,
+  quickjsVariant,
   { wasmBinary },
 )));
 

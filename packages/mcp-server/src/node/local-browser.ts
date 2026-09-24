@@ -5,6 +5,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { createServer } from "node:net";
 import { join } from "node:path";
+import { z } from "zod";
 import type { BrowserHandle, BrowserProvider } from "../browse/provider.ts";
 
 export async function cdpReady(port: number): Promise<boolean> {
@@ -12,8 +13,10 @@ export async function cdpReady(port: number): Promise<boolean> {
     const response = await fetch(`http://127.0.0.1:${port}/json/version`, {
       signal: AbortSignal.timeout(500),
     });
-    const info = (await response.json()) as { webSocketDebuggerUrl?: string };
-    return response.ok && !!info.webSocketDebuggerUrl;
+    const info = z
+      .object({ webSocketDebuggerUrl: z.string().min(1) })
+      .safeParse(await response.json());
+    return response.ok && info.success;
   } catch {
     return false;
   }
@@ -155,8 +158,12 @@ function freePort(): Promise<number> {
     const server = createServer();
     server.once("error", reject);
     server.listen(0, "127.0.0.1", () => {
-      const { port } = server.address() as { port: number };
-      server.close(() => resolve(port));
+      const address = server.address();
+      if (address === null || typeof address === "string") {
+        server.close(() => reject(new Error("Could not determine a free TCP port.")));
+        return;
+      }
+      server.close(() => resolve(address.port));
     });
   });
 }

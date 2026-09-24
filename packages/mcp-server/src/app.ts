@@ -34,7 +34,7 @@ export interface AppDeps {
 }
 
 export interface App {
-  fetch: (request: Request, ...rest: unknown[]) => Response | Promise<Response>;
+  fetch: (request: Request) => Response | Promise<Response>;
 }
 
 export function createApp({
@@ -96,9 +96,9 @@ export function createApp({
   });
 
   app.post("/screen", async (c) => {
-    const body = (await c.req.json().catch(() => ({}))) as { cdpUrl?: string };
-    const endpoint = body.cdpUrl ?? config.defaultCdpUrl;
-    if (!endpoint || typeof endpoint !== "string")
+    const body = screenBodySchema.safeParse(await c.req.json().catch(() => ({})));
+    const endpoint = body.success ? (body.data.cdpUrl ?? config.defaultCdpUrl) : undefined;
+    if (!endpoint)
       return c.json({ error: "cdpUrl is required." }, 400);
     const base64 = await captureScreenshot(endpoint, {
       ...(connect ? { connect } : {}),
@@ -246,8 +246,10 @@ export function createApp({
   });
 
   log(`stateless MCP endpoint mounted at ${config.endpoint}`);
-  return { fetch: app.fetch as App["fetch"] };
+  return { fetch: (request) => app.fetch(request) };
 }
+
+const screenBodySchema = z.object({ cdpUrl: z.string().optional() });
 
 const browserHandleSchema = z.object({
   provider: z.string().min(1),

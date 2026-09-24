@@ -74,7 +74,7 @@ export interface BrowserEvent {
 export interface BrowserRunOutput {
   text: string;
   isError: boolean;
-  status: "completed" | "failed" | "interrupted";
+  status: z.infer<typeof runStatusSchema>["status"];
   value?: unknown;
   [key: string]: unknown;
 }
@@ -87,6 +87,8 @@ export interface BrowserRunInput {
   sessionId?: string | undefined;
   timeoutMs?: number | undefined;
 }
+
+const runStatusSchema = z.object({ status: z.enum(["completed", "failed", "interrupted"]) });
 
 /** A session as the model sees it: everything but the CDP credential. */
 export type SessionSummary = Omit<BrowserSession, "cdpUrl">;
@@ -150,14 +152,7 @@ export function createBrowserToolkit(options: BrowserToolsOptions = {}) {
               "recently started session is used, or a temporary browser when none is open."
           : undefined,
       ),
-      // Typed as the union of both modes' fields; at runtime only one of
-      // `cdpUrl` and `sessionId` is in the schema.
-      inputSchema: runInputSchema as unknown as z.ZodObject<{
-        code: z.ZodString;
-        cdpUrl: z.ZodOptional<z.ZodString>;
-        sessionId: z.ZodOptional<z.ZodString>;
-        timeoutMs: z.ZodOptional<z.ZodNumber>;
-      }>,
+      inputSchema: runInputSchema,
       async execute(
         { sessionId, ...input }: BrowserRunInput,
         signal?: AbortSignal,
@@ -178,7 +173,8 @@ export function createBrowserToolkit(options: BrowserToolsOptions = {}) {
           label,
           ...(notify ? { notify } : {}),
         });
-        return { ...(structuredContent as { status: BrowserRunOutput["status"] }), text, isError };
+        const { status } = runStatusSchema.parse(structuredContent);
+        return { ...structuredContent, status, text, isError };
       },
     },
     sessions: browser
@@ -246,7 +242,7 @@ function summarize({ cdpUrl: _, ...session }: BrowserSession): SessionSummary {
 }
 
 /** Hand the model the compact text, flagged as an error when the program failed. */
-export function toModelOutput(output: BrowserRunOutput) {
+export function toModelOutput(output: Pick<BrowserRunOutput, "text" | "isError">) {
   return { type: output.isError ? ("error-text" as const) : ("text" as const), value: output.text };
 }
 

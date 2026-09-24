@@ -2,9 +2,12 @@
 import { CdpConnection, openWebSocket, type OpenSocket } from "./transport.ts";
 import { resolveCdpUrl } from "./cdp.ts";
 import type { FrameTarget, ResolvedSelector } from "./selectors.ts";
+import { z } from "zod";
 
-export type LoadState = "load" | "domcontentloaded" | "networkidle";
-export type MouseButton = "left" | "middle" | "right";
+export const LOAD_STATES = ["load", "domcontentloaded", "networkidle"] as const;
+export type LoadState = (typeof LOAD_STATES)[number];
+export const MOUSE_BUTTONS = ["left", "middle", "right"] as const;
+export type MouseButton = (typeof MOUSE_BUTTONS)[number];
 type NavigationOptions = { timeout?: number; waitUntil?: LoadState };
 const pause = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -521,14 +524,14 @@ export class Page {
       const { cssContentSize } = await this.send("Page.getLayoutMetrics");
       clip = cssContentSize;
     }
-    const { data } = await this.send("Page.captureScreenshot", {
+    const response = await this.send("Page.captureScreenshot", {
       format: options.type ?? "png",
       ...(options.quality === undefined ? {} : { quality: options.quality }),
       ...(clip
         ? { clip: { ...clip, scale: 1 }, captureBeyondViewport: true }
         : {}),
     });
-    return data as string;
+    return screenshotSchema.parse(response).data;
   }
   async setViewportSize(
     width: number,
@@ -808,10 +811,10 @@ export class Locator {
   centroid(): Promise<{ x: number; y: number }> {
     return this.withElement(async ({ sessionId, objectId }) => {
       await this.page.sendTo(sessionId, "DOM.scrollIntoViewIfNeeded", { objectId }).catch(() => {});
-      const { quads } = await this.page
+      const response = await this.page
         .sendTo(sessionId, "DOM.getContentQuads", { objectId })
         .catch(() => ({ quads: [] }));
-      const quad = (quads as number[][]).find((q) => area(q) > 0);
+      const quad = contentQuadsSchema.parse(response).quads.find((q) => area(q) > 0);
       if (!quad) throw new Error("Element is not visible");
       const offset = await this.page.offsetOf(sessionId);
       return {
@@ -821,6 +824,9 @@ export class Locator {
     });
   }
 }
+
+const screenshotSchema = z.object({ data: z.string() });
+const contentQuadsSchema = z.object({ quads: z.array(z.array(z.number())) });
 
 function area(quad: number[]): number {
   let sum = 0;

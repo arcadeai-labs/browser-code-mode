@@ -6,8 +6,9 @@ import {
   type QuickJSHandle,
   type QuickJSDeferredPromise,
 } from "quickjs-emscripten-core";
-import variant from "@jitl/quickjs-wasmfile-release-sync";
+import { quickjsVariant } from "./variant.ts";
 import { transform } from "sucrase";
+import { z } from "zod";
 import type { CommandRunner } from "../browse/driver.ts";
 import {
   createHostFunctions,
@@ -20,8 +21,12 @@ export interface RunLimits {
   memoryLimitBytes?: number;
   maxInterrupts?: number;
 }
+
+const logLevelSchema = z.enum(["info", "warn", "error"]);
+const argsSchema = z.array(z.unknown());
+
 export interface LogEntry {
-  level: "info" | "warn" | "error";
+  level: z.infer<typeof logLevelSchema>;
   /** Arguments as the program passed them. */
   args: unknown[];
 }
@@ -64,9 +69,7 @@ export interface RunProgramOptions {
 
 export type LoadQuickJS = () => Promise<QuickJSWASMModule>;
 const loadQuickJS: LoadQuickJS = () =>
-  newQuickJSWASMModuleFromVariant(
-    variant as unknown as Parameters<typeof newQuickJSWASMModuleFromVariant>[0],
-  );
+  newQuickJSWASMModuleFromVariant(quickjsVariant);
 
 export const runProgram = (options: RunProgramOptions) =>
   createProgramRunner(loadQuickJS)(options);
@@ -131,7 +134,7 @@ export function createProgramRunner(load: LoadQuickJS) {
           };
         if (++commands > maxCommands)
           return { error: vm.newError("Command budget exceeded.") };
-        const args = JSON.parse(vm.getString(argsHandle)) as unknown[];
+        const args = argsSchema.parse(JSON.parse(vm.getString(argsHandle)));
         const deferred = vm.newPromise();
         deferreds.add(deferred);
         const task = Promise.resolve()
@@ -176,9 +179,9 @@ export function createProgramRunner(load: LoadQuickJS) {
       logBytes += new TextEncoder().encode(json).byteLength;
       if (logBytes > maxBytes)
         return { error: vm.newError("Log output exceeds maxResultBytes.") };
-      const entry = {
-        level: vm.getString(levelHandle) as LogEntry["level"],
-        args: JSON.parse(json) as unknown[],
+      const entry: LogEntry = {
+        level: logLevelSchema.parse(vm.getString(levelHandle)),
+        args: argsSchema.parse(JSON.parse(json)),
       };
       logs.push(entry);
       options.onLog?.(entry);

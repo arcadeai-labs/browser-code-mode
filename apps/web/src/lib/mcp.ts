@@ -7,11 +7,14 @@
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { dynamicTool, jsonSchema, type JSONSchema7, type ToolSet } from "ai";
+import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
+import { dynamicTool, jsonSchema, type ToolSet } from "ai";
+import { z } from "zod";
 
 import { mcpHeaders } from "./env.ts";
 import { fetchBrowserApp } from "./browser-app.ts";
+
+const toolArgumentsSchema = z.record(z.unknown());
 
 export interface McpSession {
   tools: ToolSet;
@@ -44,16 +47,16 @@ export async function openMcpSession(cdpUrl?: string): Promise<McpSession> {
           definition.name,
           dynamicTool({
             description: definition.description ?? "",
-            inputSchema: jsonSchema(definition.inputSchema as JSONSchema7),
+            inputSchema: jsonSchema(definition.inputSchema),
             // The UI renders the raw MCP result; the model reads its text.
             execute: (input, { abortSignal }) =>
               client.callTool(
-                { name: definition.name, arguments: input as Record<string, unknown> },
+                { name: definition.name, arguments: toolArgumentsSchema.parse(input) },
                 undefined,
                 abortSignal ? { signal: abortSignal } : {},
               ),
             toModelOutput: ({ output }) => {
-              const result = output as CallToolResult;
+              const result = CallToolResultSchema.parse(output);
               const value = result.content
                 .map((part) => (part.type === "text" ? part.text : JSON.stringify(part)))
                 .join("\n");

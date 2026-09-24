@@ -4,8 +4,9 @@ import {
   convertToModelMessages,
   stepCountIs,
   streamText,
-  type UIMessage,
+  validateUIMessages,
 } from "ai";
+import { z } from "zod";
 
 import { env } from "../lib/env.ts";
 import { openMcpSession } from "../lib/mcp.ts";
@@ -24,6 +25,11 @@ The browser the user is watching is already configured, so never pass cdpUrl.
 
 When you have the answer, reply in one or two sentences. Do not narrate the code you just ran.`;
 
+const chatBodySchema = z.object({
+  messages: z.array(z.unknown()),
+  cdpUrl: z.string().optional(),
+});
+
 export const Route = createFileRoute("/api/chat")({
   server: {
     handlers: {
@@ -35,15 +41,25 @@ export const Route = createFileRoute("/api/chat")({
           );
         }
 
-        const { messages, cdpUrl } = (await request.json()) as {
-          messages: UIMessage[];
-          cdpUrl?: string;
-        };
-        if (!cdpUrl || typeof cdpUrl !== "string")
+        const body = chatBodySchema.safeParse(await request.json().catch(() => null));
+        if (!body.success)
+          return Response.json({ error: "Invalid chat request." }, { status: 400 });
+        const { cdpUrl } = body.data;
+        if (!cdpUrl)
           return Response.json(
             { error: "Start a browser first." },
             { status: 400 },
           );
+
+        let messages;
+        try {
+          messages = await validateUIMessages({ messages: body.data.messages });
+        } catch (error) {
+          return Response.json(
+            { error: `Invalid chat messages: ${error instanceof Error ? error.message : String(error)}` },
+            { status: 400 },
+          );
+        }
 
         let session;
         try {

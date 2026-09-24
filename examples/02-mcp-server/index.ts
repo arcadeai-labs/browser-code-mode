@@ -24,6 +24,12 @@ const host = "127.0.0.1";
 const browser = providerBrowser(localProvider());
 const toolkit = createBrowserToolkit({ browser });
 const sessions = toolkit.sessions!;
+const runShape = sessionRunShape(toolkit.run.inputSchema.shape);
+
+function sessionRunShape(shape: typeof toolkit.run.inputSchema.shape) {
+  if (!("sessionId" in shape)) throw new Error("With a browser, browser_run takes a sessionId.");
+  return shape;
+}
 
 const json = (value: unknown) => ({
   content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }],
@@ -45,7 +51,7 @@ function createMcpServer(): McpServer {
     toolkit.run.name,
     {
       description: toolkit.run.description,
-      inputSchema: toolkit.run.inputSchema.shape,
+      inputSchema: runShape,
       annotations: { readOnlyHint: false, openWorldHint: true },
     },
     async (input, { signal }) => {

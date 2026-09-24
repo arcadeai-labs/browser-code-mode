@@ -8,7 +8,11 @@
  * difference.
  */
 
+import { z } from "zod";
+
 const DEFAULT_TIMEOUT_MS = 5_000;
+
+const versionSchema = z.object({ webSocketDebuggerUrl: z.string() });
 
 export interface ResolveOptions {
   timeoutMs?: number;
@@ -17,8 +21,8 @@ export interface ResolveOptions {
 
 /** Raised when a CDP endpoint cannot be reached or understood. */
 export class CdpEndpointError extends Error {
-  constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options as ErrorOptions);
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
     this.name = "CdpEndpointError";
   }
 }
@@ -44,15 +48,15 @@ export async function resolveCdpUrl(
     );
   }
 
-  const payload = await fetchJson(new URL("/json/version", origin), timeoutMs, signal);
-  const webSocketDebuggerUrl = (payload as { webSocketDebuggerUrl?: unknown })
-    .webSocketDebuggerUrl;
-  if (typeof webSocketDebuggerUrl !== "string") {
+  const payload = versionSchema.safeParse(
+    await fetchJson(new URL("/json/version", origin), timeoutMs, signal),
+  );
+  if (!payload.success) {
     throw new CdpEndpointError(
       `${origin} answered /json/version without a webSocketDebuggerUrl. Is it a Chrome DevTools endpoint?`,
     );
   }
-  return webSocketDebuggerUrl;
+  return payload.data.webSocketDebuggerUrl;
 }
 
 async function fetchJson(

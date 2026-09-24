@@ -11,6 +11,7 @@
   "scripts": {
     "build": "pnpm -r build",
     "check": "pnpm -r check",
+    "lint": "biome lint",
     "test": "pnpm -r --if-present test",
     "test:e2e": "pnpm --filter @browse-code-mode/mcp-server test:e2e",
     "dev": "node scripts/dev.mjs",
@@ -21,7 +22,9 @@
     "example": "node scripts/example.mjs"
   },
   "devDependencies": {
-    "typescript": "^5.9.3",
-    "@types/node": "^22.19.0"
+    "@biomejs/biome": "^2.5.14",
+    "@types/node": "^22.19.0",
+    "biome-plugin-no-type-assertion": "^1.1.1",
+    "typescript": "^5.9.3"
   }
 }

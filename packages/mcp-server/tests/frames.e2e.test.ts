@@ -91,7 +91,8 @@ test("the snapshot includes every frame, cross-site and nested ones too", {
   const lines = tree.split("\n");
   const iframe = lines.findIndex((l) => l.includes("Iframe: Cross-site frame"));
   const button = lines.findIndex((l) => l.includes("button: Cross-site button"));
-  assert.ok(button > iframe && lines[button]!.search(/\S/) > lines[iframe]!.search(/\S/));
+  const indent = (index: number) => lines[index]?.search(/\S/) ?? -1;
+  assert.ok(iframe !== -1 && button > iframe && indent(button) > indent(iframe));
   assert.ok(!tree.includes("InlineTextBox"));
   assert.ok(!tree.includes("StaticText: Top button"));
 });

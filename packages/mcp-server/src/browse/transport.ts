@@ -30,8 +30,15 @@ export const openWebSocket: OpenSocket = (url, signal) =>
     });
   });
 
+/**
+ * A decoded CDP message body. Payloads arrive as unvalidated JSON, and callers
+ * read only the fields their command documents.
+ */
+// biome-ignore lint/suspicious/noExplicitAny: the wire format is untyped; typing every CDP domain is out of scope.
+export type CdpPayload = any;
+
 type Pending = {
-  resolve(value: any): void;
+  resolve(value: CdpPayload): void;
   reject(error: Error): void;
   timer: ReturnType<typeof setTimeout>;
 };
@@ -41,7 +48,7 @@ export class CdpConnection {
   private pending = new Map<number, Pending>();
   private nextId = 0;
   private signal: AbortSignal | undefined;
-  private listeners = new Set<(method: string, params: any, sessionId?: string) => void>();
+  private listeners = new Set<(method: string, params: CdpPayload, sessionId?: string) => void>();
   private abort = () => this.close();
   constructor(socket: WebSocket, signal?: AbortSignal) {
     this.socket = socket;
@@ -66,11 +73,11 @@ export class CdpConnection {
     if (signal?.aborted) this.close();
   }
 
-  onEvent(listener: (method: string, params: any, sessionId?: string) => void) {
+  onEvent(listener: (method: string, params: CdpPayload, sessionId?: string) => void) {
     this.listeners.add(listener);
   }
 
-  send<T = any>(method: string, params: object = {}, sessionId?: string): Promise<T> {
+  send<T = CdpPayload>(method: string, params: object = {}, sessionId?: string): Promise<T> {
     this.signal?.throwIfAborted();
     if (this.socket.readyState !== 1) return Promise.reject(new Error("CDP connection is closed."));
     return new Promise<T>((resolve, reject) => {

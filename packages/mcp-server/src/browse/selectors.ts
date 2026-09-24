@@ -67,6 +67,7 @@ export function resolveSelector(selector: string, refMaps: RefMaps): ResolvedSel
         `(this program has ${known}).`,
     );
   }
-  const frame = refMaps.frameMap[ref.split("-")[0]!];
+  const [frameIndex = ""] = ref.split("-");
+  const frame = refMaps.frameMap[frameIndex];
   return frame ? { selector: xpath, frame } : { selector: xpath };
 }

@@ -187,15 +187,12 @@ export function createApp({
       );
     }
 
+    const cdpUrl = c.req.header("x-browse-cdp-url");
     const server = createMcpServer({
-      config: c.req.header("x-browse-cdp-url")
-        ? { ...config, defaultCdpUrl: c.req.header("x-browse-cdp-url")! }
-        : config,
+      config: cdpUrl ? { ...config, defaultCdpUrl: cdpUrl } : config,
       ...(run ? { run } : {}),
       ...(connect ? { connect } : {}),
-      provider: c.req.header("x-browse-cdp-url")
-        ? staticProvider(c.req.header("x-browse-cdp-url"))
-        : provider,
+      provider: cdpUrl ? staticProvider(cdpUrl) : provider,
     });
     // No `sessionIdGenerator`: the transport runs in stateless mode.
     const transport = new WebStandardStreamableHTTPServerTransport();

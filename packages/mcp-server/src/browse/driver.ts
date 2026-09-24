@@ -511,8 +511,9 @@ const HANDLERS: Record<string, Handler> = {
             0,
             pages.findIndex((p) => p.pageId === active?.pageId),
           ),
-          page: active ?? pages[0]!,
+          page: active ?? pages[0],
         };
+    if (!resolved.page) throw new BrowseCommandError("No tab is open.");
 
     const closedTargetId = resolved.page.pageId;
     await resolved.page.close();
@@ -563,10 +564,11 @@ async function resolveTab(
   }
 
   const index = pages.findIndex((page) => page.pageId === tab);
-  if (index === -1) {
+  const page = pages[index];
+  if (!page) {
     throw new BrowseCommandError(`Tab "${tab}" was not found. Call tab.list() for current tabs.`);
   }
-  return { index, page: pages[index]! };
+  return { index, page };
 }
 
 async function safeTitle(page: Page): Promise<string> {
@@ -632,17 +634,15 @@ export function formatTree(
   if (filter) {
     const match = matcher(filter);
     const keep = new Set<number>();
-    const ancestors: number[] = [];
+    const ancestors: Array<{ index: number; depth: number }> = [];
     lines.forEach((line, index) => {
       const depth = indentWidth(line);
-      while (ancestors.length > 0 && indentWidth(lines[ancestors.at(-1)!]!) >= depth) {
-        ancestors.pop();
-      }
+      while ((ancestors.at(-1)?.depth ?? -1) >= depth) ancestors.pop();
       if (match(line)) {
         keep.add(index);
-        for (const ancestor of ancestors) keep.add(ancestor);
+        for (const ancestor of ancestors) keep.add(ancestor.index);
       }
-      ancestors.push(index);
+      ancestors.push({ index, depth });
     });
     lines = lines.filter((_, index) => keep.has(index));
   }

@@ -71,8 +71,9 @@ export function createHostFunctions(options: HostFunctionOptions): HostFunctionB
     const key = `${spec.group}.${spec.fn}`;
     if (!isPermitted(key, options)) continue;
     exposed.push(key);
-    hostFunctions[spec.group]![spec.fn] = (...args: unknown[]) =>
-      invoke(spec, args, calls, counter, options);
+    const group = hostFunctions[spec.group] ?? {};
+    hostFunctions[spec.group] = group;
+    group[spec.fn] = (...args: unknown[]) => invoke(spec, args, calls, counter, options);
   }
 
   return { hostFunctions, calls, exposed };

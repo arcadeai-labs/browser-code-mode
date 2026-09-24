@@ -110,8 +110,9 @@ export function createBrowserToolkit(options: BrowserToolsOptions = {}) {
     ...(options.connect ? { connect: options.connect } : {}),
     ...(options.run ? { run: options.run } : {}),
   };
-  const notify = options.onEvent
-    ? (level: BrowserEvent["level"], data: unknown) => options.onEvent!({ level, data })
+  const { onEvent } = options;
+  const notify = onEvent
+    ? (level: BrowserEvent["level"], data: unknown) => onEvent({ level, data })
     : undefined;
 
   const sessionIdInput = z.object({
@@ -246,7 +247,7 @@ function temporarySessions(browser: Browser): BrowserProvider {
       return { provider: session.provider, cdpUrl: session.cdpUrl, sessionId: session.id };
     },
     async shutdown(handle) {
-      await browser.stop(handle.sessionId!);
+      if (handle.sessionId) await browser.stop(handle.sessionId);
     },
   };
 }

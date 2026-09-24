@@ -215,7 +215,7 @@ test("health reports the stateless deployment", async () => {
 test("a provider supplies the browser and is released after the program", async () => {
   // Stands in for a hosted provider: create a session on acquire, end it after.
   const acquired: string[] = [];
-  const released: string[] = [];
+  const released: Array<string | undefined> = [];
 
   const config = loadConfig({} as NodeJS.ProcessEnv);
   const app = createApp({
@@ -233,7 +233,7 @@ test("a provider supplies the browser and is released after the program", async 
         };
       },
       async shutdown(browser) {
-        released.push(browser.sessionId!);
+        released.push(browser.sessionId);
       },
     },
     connect: async () => createFakeBrowser(),

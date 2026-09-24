@@ -60,7 +60,7 @@ function Home() {
     <div className="split">
       <div className="viewport" style={{ display: "flex", flexDirection: "column" }}>
         <div style={{ padding: 12 }}>
-          <button onClick={() => void lifecycle()} disabled={busy}>
+          <button type="button" onClick={() => void lifecycle()} disabled={busy}>
             {busy ? "Working…" : browser ? "Stop browser" : "Start browser"}
           </button>
           {browser ? (
@@ -187,6 +187,7 @@ function Chat({ cdpUrl }: { cdpUrl: string }) {
 
   // Scroll the list itself. `scrollIntoView` walks up the ancestor chain and
   // will scroll the document too, which drags the whole two-pane layout.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the dependencies are the triggers; the effect reads only the ref.
   useEffect(() => {
     const list = listRef.current;
     if (list) list.scrollTop = list.scrollHeight;
@@ -233,30 +234,39 @@ function Chat({ cdpUrl }: { cdpUrl: string }) {
 function Message({ message }: { message: UIMessage }) {
   return (
     <div className={`msg msg-${message.role}`}>
-      {message.parts.map((part, index) => {
-        if (part.type === "text") {
-          if (!part.text.trim()) return null;
-          // Assistant replies use tables and lists, so they render as markdown;
-          // a user's own words are shown verbatim rather than reinterpreted as
-          // markup. Streamdown rather than react-markdown because it renders
-          // markdown that is still arriving, so a half-written table or fence
-          // does not flash as raw text mid-stream.
-          return message.role === "assistant" ? (
-            <div key={index} className="bubble markdown">
-              <Streamdown>{part.text}</Streamdown>
-            </div>
-          ) : (
-            <div key={index} className="bubble">
-              {part.text}
-            </div>
-          );
-        }
-
-        const call = asToolCall(part);
-        return call ? <ToolCall key={index} call={call} /> : null;
-      })}
+      {message.parts.map((part, index) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: parts only append and text parts have no id, so the index is stable.
+        <MessagePart key={index} role={message.role} part={part} />
+      ))}
     </div>
   );
+}
+
+function MessagePart({
+  role,
+  part,
+}: {
+  role: UIMessage["role"];
+  part: UIMessage["parts"][number];
+}) {
+  if (part.type === "text") {
+    if (!part.text.trim()) return null;
+    // Assistant replies use tables and lists, so they render as markdown;
+    // a user's own words are shown verbatim rather than reinterpreted as
+    // markup. Streamdown rather than react-markdown because it renders
+    // markdown that is still arriving, so a half-written table or fence
+    // does not flash as raw text mid-stream.
+    return role === "assistant" ? (
+      <div className="bubble markdown">
+        <Streamdown>{part.text}</Streamdown>
+      </div>
+    ) : (
+      <div className="bubble">{part.text}</div>
+    );
+  }
+
+  const call = asToolCall(part);
+  return call ? <ToolCall call={call} /> : null;
 }
 
 interface ToolCallView {

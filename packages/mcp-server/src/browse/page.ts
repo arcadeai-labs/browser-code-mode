@@ -2,7 +2,7 @@
 
 import { resolveCdpUrl } from "./cdp.ts";
 import type { FrameTarget, ResolvedSelector } from "./selectors.ts";
-import { CdpConnection, type OpenSocket, openWebSocket } from "./transport.ts";
+import { CdpConnection, type CdpPayload, type OpenSocket, openWebSocket } from "./transport.ts";
 
 export type LoadState = "load" | "domcontentloaded" | "networkidle";
 export type MouseButton = "left" | "middle" | "right";
@@ -102,7 +102,7 @@ export class Page {
         if (params.targetInfo?.type !== "iframe") return;
         this.oopifs.set(params.targetInfo.targetId, {
           sessionId: params.sessionId,
-          parentSessionId: session!,
+          parentSessionId: session,
         });
         // A cross-site frame can hold cross-site frames of its own.
         this.watch(this.autoAttach(params.sessionId));
@@ -114,7 +114,7 @@ export class Page {
         return;
       }
       if (method.startsWith("Runtime.executionContext") && this.ownsSession(session)) {
-        this.trackWorld(session!, method, params);
+        this.trackWorld(session, method, params);
         return;
       }
       if (session !== sessionId) return;
@@ -157,14 +157,17 @@ export class Page {
     const tracked = pending.catch(() => {}).finally(() => this.attaching.delete(tracked));
     this.attaching.add(tracked);
   }
-  private ownsSession(session: string | undefined): boolean {
+  private ownsSession(session: string | undefined): session is string {
     if (session === this.sessionId) return true;
     for (const frame of this.oopifs.values()) if (frame.sessionId === session) return true;
     return false;
   }
-  private trackWorld(session: string, method: string, params: any) {
+  private trackWorld(session: string, method: string, params: CdpPayload) {
     let worlds = this.worlds.get(session);
-    if (!worlds) this.worlds.set(session, (worlds = new Map()));
+    if (!worlds) {
+      worlds = new Map();
+      this.worlds.set(session, worlds);
+    }
     if (method === "Runtime.executionContextsCleared") return worlds.clear();
     if (method === "Runtime.executionContextDestroyed") {
       for (const [frameId, id] of worlds)
@@ -180,7 +183,7 @@ export class Page {
    * only reports context ids after Runtime.enable, so enable it per session on
    * first use; existing contexts arrive before enable returns.
    */
-  async evaluateIn(frame: FrameTarget, expression: string): Promise<any> {
+  async evaluateIn<T = unknown>(frame: FrameTarget, expression: string): Promise<T> {
     let enabling = this.runtimeEnabled.get(frame.sessionId);
     if (!enabling) {
       enabling = this.sendTo(frame.sessionId, "Runtime.enable");
@@ -246,7 +249,7 @@ export class Page {
         }));
         if (!frameTree) return [];
         const found: SnapshotFrame[] = [];
-        const walk = (node: any, root: boolean) => {
+        const walk = (node: FrameTreeNode, root: boolean) => {
           found.push({
             frameId: node.frame.id,
             sessionId,
@@ -279,7 +282,7 @@ export class Page {
     );
     return frames;
   }
-  async evaluate(expression: string): Promise<any> {
+  async evaluate<T = unknown>(expression: string): Promise<T> {
     const response = await this.send("Runtime.evaluate", {
       expression,
       returnByValue: true,
@@ -375,7 +378,7 @@ export class Page {
   }
   async keyPress(combo: string) {
     const parts = combo.split("+");
-    const key = parts.pop()!;
+    const key = parts.pop() ?? "";
     const modifiers = parts.reduce(
       (n, p) => n | ({ Alt: 1, Control: 2, Ctrl: 2, Meta: 4, Shift: 8 }[p] ?? 0),
       0,
@@ -549,8 +552,8 @@ export class Page {
     const renderFrame = (frame: SnapshotFrame, depth: number) => {
       const index = nextFrame++;
       frameMap[index] = { sessionId: frame.sessionId, frameId: frame.frameId };
-      const byId = new Map<string, any>(frame.nodes.map((node: any) => [node.nodeId, node]));
-      const visit = (node: any, depth: number, parentName: string | undefined) => {
+      const byId = new Map(frame.nodes.map((node) => [node.nodeId, node]));
+      const visit = (node: AXNode | undefined, depth: number, parentName: string | undefined) => {
         if (!node) return;
         const role = node.role?.value ?? "node";
         const name = node.name?.value ?? "";
@@ -562,9 +565,8 @@ export class Page {
         if (shown && ref) {
           // Resolve refs using backend node IDs, never a server-side page registry.
           xpathMap[ref] = `backend=${node.backendDOMNodeId}`;
-          const url = node.properties?.find((p: { name: string }) => p.name === "url")?.value
-            ?.value;
-          if (url) urlMap[ref] = url;
+          const url = node.properties?.find((p) => p.name === "url")?.value?.value;
+          if (typeof url === "string" && url) urlMap[ref] = url;
         }
         if (shown)
           lines.push(
@@ -593,8 +595,30 @@ interface SnapshotFrame {
   /** Session holding the <iframe> element; unset for the top frame. */
   ownerSession: string | undefined;
   ownerNode?: number;
-  nodes: any[];
+  nodes: AXNode[];
 }
+
+/** The fields of CDP's `Accessibility.AXNode` that snapshots read. */
+interface AXNode {
+  nodeId: string;
+  parentId?: string;
+  childIds?: string[];
+  backendDOMNodeId?: number;
+  ignored?: boolean;
+  role?: { value?: string };
+  name?: { value?: string };
+  value?: { value?: unknown };
+  properties?: Array<{ name: string; value?: { value?: unknown } }>;
+}
+
+/** CDP's `Page.FrameTree`, trimmed to what `frames()` walks. */
+interface FrameTreeNode {
+  frame: { id: string };
+  childFrames?: FrameTreeNode[];
+}
+
+/** CDP's `DOM.Quad`: four corners as x/y pairs, clockwise. */
+type Quad = [number, number, number, number, number, number, number, number];
 
 /** Where a resolved element lives: its frame's session and a remote object. */
 interface ElementHandle {
@@ -713,9 +737,9 @@ export class Locator {
     });
   }
   /** Run `body` with `el` bound to the element, or to null when nothing matches. */
-  private async apply(body: string): Promise<any> {
+  private async apply<T = unknown>(body: string): Promise<T> {
     const element = await this.resolve();
-    if (!element) return this.page.evaluate(`(() => { const el = null; ${body} })()`);
+    if (!element) return this.page.evaluate<T>(`(() => { const el = null; ${body} })()`);
     try {
       const result = await this.page.sendTo(element.sessionId, "Runtime.callFunctionOn", {
         objectId: element.objectId,
@@ -799,22 +823,20 @@ export class Locator {
       const { quads } = await this.page
         .sendTo(sessionId, "DOM.getContentQuads", { objectId })
         .catch(() => ({ quads: [] }));
-      const quad = (quads as number[][]).find((q) => area(q) > 0);
+      const quad = (quads as Quad[]).find((q) => area(q) > 0);
       if (!quad) throw new Error("Element is not visible");
+      const [x1, y1, x2, y2, x3, y3, x4, y4] = quad;
       const offset = await this.page.offsetOf(sessionId);
       return {
-        x: offset.x + (quad[0]! + quad[2]! + quad[4]! + quad[6]!) / 4,
-        y: offset.y + (quad[1]! + quad[3]! + quad[5]! + quad[7]!) / 4,
+        x: offset.x + (x1 + x2 + x3 + x4) / 4,
+        y: offset.y + (y1 + y2 + y3 + y4) / 4,
       };
     });
   }
 }
 
-function area(quad: number[]): number {
-  let sum = 0;
-  for (let i = 0; i < 8; i += 2) {
-    const [x1, y1, x2, y2] = [quad[i]!, quad[i + 1]!, quad[(i + 2) % 8]!, quad[(i + 3) % 8]!];
-    sum += x1 * y2 - x2 * y1;
-  }
-  return Math.abs(sum) / 2;
+function area([x1, y1, x2, y2, x3, y3, x4, y4]: Quad): number {
+  return (
+    Math.abs(x1 * y2 - x2 * y1 + x2 * y3 - x3 * y2 + x3 * y4 - x4 * y3 + x4 * y1 - x1 * y4) / 2
+  );
 }

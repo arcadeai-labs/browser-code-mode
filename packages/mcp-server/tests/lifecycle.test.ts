@@ -41,7 +41,7 @@ test("provider shutdown still runs when CDP disconnect throws", async () => {
 });
 
 test("a serialized handle can be shut down on a fresh instance", async () => {
-  const stopped: string[] = [];
+  const stopped: Array<string | undefined> = [];
   const provider = () =>
     browserProvider({
       name: "test",
@@ -50,7 +50,7 @@ test("a serialized handle can be shut down on a fresh instance", async () => {
         cdpUrl: "wss://browser.example/session-1",
       }),
       shutdown: async (browser) => {
-        stopped.push(browser.sessionId!);
+        stopped.push(browser.sessionId);
       },
     });
   const create = createApp({ config: loadConfig(), provider: provider() });
@@ -111,7 +111,7 @@ for (const name of ["kernel", "browserbase"]) {
     assert.equal(name === "kernel" ? body.timeout_seconds : body.timeout, 600);
     if (name === "browserbase") assert.equal(body.keepAlive, true);
     await providerFromEnv(env, request).shutdown(JSON.parse(JSON.stringify(handle)));
-    assert.match(calls[1]!.url, /\/one$/);
+    assert.match(calls[1]?.url ?? "", /\/one$/);
     assert.equal(calls[1]?.init?.method, name === "kernel" ? "DELETE" : "POST");
   });
 }

@@ -4,7 +4,9 @@ packages:
   - examples/*
 
 # esbuild's platform binary arrives through its optional dependencies, so its
-# install script is not needed. Declined explicitly so installs do not prompt.
+# install script is not needed. simple-git-hooks is installed by the root
+# `prepare` script instead. Declined explicitly so installs do not prompt.
 allowBuilds:
   esbuild: false
+  simple-git-hooks: false
   workerd: true

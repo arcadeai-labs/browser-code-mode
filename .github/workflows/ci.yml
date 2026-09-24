@@ -1,0 +1,18 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  biome:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # Picks up the Biome version pinned in pnpm-lock.yaml.
+      - uses: biomejs/setup-biome@v2
+      - run: biome ci --error-on-warnings .

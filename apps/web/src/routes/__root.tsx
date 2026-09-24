@@ -1,4 +1,4 @@
-import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
+import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 
 import styles from "../styles.css?url";
 
@@ -12,7 +12,12 @@ export const Route = createRootRoute({
     links: [{ rel: "stylesheet", href: styles }],
   }),
   component: RootDocument,
-  notFoundComponent: () => <main><h1>Page not found</h1><a href="/">Return to browser</a></main>,
+  notFoundComponent: () => (
+    <main>
+      <h1>Page not found</h1>
+      <a href="/">Return to browser</a>
+    </main>
+  ),
 });
 
 function RootDocument() {

@@ -12,8 +12,8 @@ type HostFunctions = Record<string, Record<string, (...args: unknown[]) => Promi
 import {
   buildParams,
   COMMANDS,
-  commandGroups,
   type CommandSpec,
+  commandGroups,
   type GroupName,
 } from "./commands.ts";
 import type { CommandRunner } from "./driver.ts";
@@ -71,7 +71,9 @@ export function createHostFunctions(options: HostFunctionOptions): HostFunctionB
     const key = `${spec.group}.${spec.fn}`;
     if (!isPermitted(key, options)) continue;
     exposed.push(key);
-    hostFunctions[spec.group]![spec.fn] = (...args: unknown[]) => invoke(spec, args, calls, counter, options);
+    const group = hostFunctions[spec.group] ?? {};
+    hostFunctions[spec.group] = group;
+    group[spec.fn] = (...args: unknown[]) => invoke(spec, args, calls, counter, options);
   }
 
   return { hostFunctions, calls, exposed };
@@ -146,10 +148,7 @@ function isPermitted(key: string, options: HostFunctionOptions): boolean {
  * Render a call as the shell command it stands for, so a program's trace reads
  * like the `browse` invocations an agent would otherwise have typed.
  */
-export function formatCall(
-  spec: CommandSpec,
-  params: Record<string, unknown>,
-): string {
+export function formatCall(spec: CommandSpec, params: Record<string, unknown>): string {
   const words = cliWords(spec.cli);
   const positional = (spec.args ?? [])
     .map((arg) => params[arg.param ?? arg.name])

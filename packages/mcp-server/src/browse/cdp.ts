@@ -45,8 +45,7 @@ export async function resolveCdpUrl(
   }
 
   const payload = await fetchJson(new URL("/json/version", origin), timeoutMs, signal);
-  const webSocketDebuggerUrl = (payload as { webSocketDebuggerUrl?: unknown })
-    .webSocketDebuggerUrl;
+  const webSocketDebuggerUrl = (payload as { webSocketDebuggerUrl?: unknown }).webSocketDebuggerUrl;
   if (typeof webSocketDebuggerUrl !== "string") {
     throw new CdpEndpointError(
       `${origin} answered /json/version without a webSocketDebuggerUrl. Is it a Chrome DevTools endpoint?`,

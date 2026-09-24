@@ -10,11 +10,14 @@
  */
 
 import { createServer } from "node:http";
-
+import { localProvider } from "@browse-code-mode/mcp-server/local-browser";
+import {
+  createBrowserToolkit,
+  providerBrowser,
+  type SessionToolkit,
+} from "@browse-code-mode/tools";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { createBrowserToolkit, providerBrowser } from "@browse-code-mode/tools";
-import { localProvider } from "@browse-code-mode/mcp-server/local-browser";
 
 const port = Number(process.env.PORT ?? 3000);
 const host = "127.0.0.1";
@@ -23,7 +26,8 @@ const host = "127.0.0.1";
 // Sessions outlive each stateless request because they live in this process.
 const browser = providerBrowser(localProvider());
 const toolkit = createBrowserToolkit({ browser });
-const sessions = toolkit.sessions!;
+if (!toolkit.sessions) throw new Error("A toolkit created with a browser has session tools.");
+const sessions: SessionToolkit = toolkit.sessions;
 
 const json = (value: unknown) => ({
   content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }],
@@ -56,7 +60,10 @@ function createMcpServer(): McpServer {
 
   server.registerTool(
     sessions.start.name,
-    { description: sessions.start.description, annotations: { readOnlyHint: false, openWorldHint: true } },
+    {
+      description: sessions.start.description,
+      annotations: { readOnlyHint: false, openWorldHint: true },
+    },
     async ({ signal }) => json(await sessions.start.execute(signal)),
   );
 

@@ -1,18 +1,16 @@
 /** QuickJS/WASM sandbox shared by Node, Vercel and Cloudflare Workers.
  * Only JSON values cross the boundary; the guest has no host globals. */
+
+import variant from "@jitl/quickjs-wasmfile-release-sync";
 import {
   newQuickJSWASMModuleFromVariant,
-  type QuickJSWASMModule,
-  type QuickJSHandle,
   type QuickJSDeferredPromise,
+  type QuickJSHandle,
+  type QuickJSWASMModule,
 } from "quickjs-emscripten-core";
-import variant from "@jitl/quickjs-wasmfile-release-sync";
 import { transform } from "sucrase";
 import type { CommandRunner } from "../browse/driver.ts";
-import {
-  createHostFunctions,
-  type CommandCall,
-} from "../browse/host-functions.ts";
+import { type CommandCall, createHostFunctions } from "../browse/host-functions.ts";
 export interface RunLimits {
   timeoutMs?: number;
   maxBridgeRequests?: number;
@@ -68,8 +66,7 @@ const loadQuickJS: LoadQuickJS = () =>
     variant as unknown as Parameters<typeof newQuickJSWASMModuleFromVariant>[0],
   );
 
-export const runProgram = (options: RunProgramOptions) =>
-  createProgramRunner(loadQuickJS)(options);
+export const runProgram = (options: RunProgramOptions) => createProgramRunner(loadQuickJS)(options);
 
 export function createProgramRunner(load: LoadQuickJS) {
   return async (options: RunProgramOptions): Promise<ProgramResult> => {
@@ -89,9 +86,7 @@ export function createProgramRunner(load: LoadQuickJS) {
     });
     const module = await load();
     const runtime = module.newRuntime();
-    runtime.setMemoryLimit(
-      options.limits?.memoryLimitBytes ?? 32 * 1024 * 1024,
-    );
+    runtime.setMemoryLimit(options.limits?.memoryLimitBytes ?? 32 * 1024 * 1024);
     runtime.setMaxStackSize(512 * 1024);
     let interrupts = 0;
     let budgetExceeded = false;
@@ -99,9 +94,7 @@ export function createProgramRunner(load: LoadQuickJS) {
     // bounds synchronous loops there, without needing a worker thread.
     runtime.setInterruptHandler(() => {
       budgetExceeded = ++interrupts > (options.limits?.maxInterrupts ?? 10_000);
-      return (
-        budgetExceeded || Date.now() >= deadline || !!options.signal?.aborted
-      );
+      return budgetExceeded || Date.now() >= deadline || !!options.signal?.aborted;
     });
     const vm = runtime.newContext();
     let alive = true;
@@ -115,67 +108,57 @@ export function createProgramRunner(load: LoadQuickJS) {
         throw new Error("Result exceeds maxResultBytes.");
       return vm.newString(json);
     };
-    const host = vm.newFunction(
-      "__host",
-      (groupHandle, fnHandle, argsHandle) => {
-        const group = vm.getString(groupHandle);
-        const fn = vm.getString(fnHandle);
-        const functions = Object.hasOwn(hostFunctions, group)
-          ? hostFunctions[group]
-          : undefined;
-        const callback =
-          functions && Object.hasOwn(functions, fn) ? functions[fn] : undefined;
-        if (!callback)
-          return {
-            error: vm.newError(`Unknown host function: ${group}.${fn}`),
-          };
-        if (++commands > maxCommands)
-          return { error: vm.newError("Command budget exceeded.") };
-        const args = JSON.parse(vm.getString(argsHandle)) as unknown[];
-        const deferred = vm.newPromise();
-        deferreds.add(deferred);
-        const task = Promise.resolve()
-          .then(() => {
-            if (alive) return callback(...args);
-          })
-          .then(
-            (value) => {
-              if (!alive) return;
-              const handle = encode(value);
-              deferred.resolve(handle);
-              handle.dispose();
-            },
-            () => {
-              if (!alive) return;
-              const error = vm.newError("Host function failed.");
-              deferred.reject(error);
-              error.dispose();
-            },
-          )
-          .catch((error) => {
+    const host = vm.newFunction("__host", (groupHandle, fnHandle, argsHandle) => {
+      const group = vm.getString(groupHandle);
+      const fn = vm.getString(fnHandle);
+      const functions = Object.hasOwn(hostFunctions, group) ? hostFunctions[group] : undefined;
+      const callback = functions && Object.hasOwn(functions, fn) ? functions[fn] : undefined;
+      if (!callback)
+        return {
+          error: vm.newError(`Unknown host function: ${group}.${fn}`),
+        };
+      if (++commands > maxCommands) return { error: vm.newError("Command budget exceeded.") };
+      const args = JSON.parse(vm.getString(argsHandle)) as unknown[];
+      const deferred = vm.newPromise();
+      deferreds.add(deferred);
+      const task = Promise.resolve()
+        .then(() => {
+          if (alive) return callback(...args);
+        })
+        .then(
+          (value) => {
             if (!alive) return;
-            const handle = vm.newError(
-              error instanceof Error ? error.message : String(error),
-            );
-            deferred.reject(handle);
+            const handle = encode(value);
+            deferred.resolve(handle);
             handle.dispose();
-          })
-          .finally(() => {
-            pending.delete(task);
-            if (alive) {
-              deferred.dispose();
-              deferreds.delete(deferred);
-            }
-          });
-        pending.add(task);
-        return deferred.handle;
-      },
-    );
+          },
+          () => {
+            if (!alive) return;
+            const error = vm.newError("Host function failed.");
+            deferred.reject(error);
+            error.dispose();
+          },
+        )
+        .catch((error) => {
+          if (!alive) return;
+          const handle = vm.newError(error instanceof Error ? error.message : String(error));
+          deferred.reject(handle);
+          handle.dispose();
+        })
+        .finally(() => {
+          pending.delete(task);
+          if (alive) {
+            deferred.dispose();
+            deferreds.delete(deferred);
+          }
+        });
+      pending.add(task);
+      return deferred.handle;
+    });
     const log = vm.newFunction("__log", (levelHandle, argsHandle) => {
       const json = vm.getString(argsHandle);
       logBytes += new TextEncoder().encode(json).byteLength;
-      if (logBytes > maxBytes)
-        return { error: vm.newError("Log output exceeds maxResultBytes.") };
+      if (logBytes > maxBytes) return { error: vm.newError("Log output exceeds maxResultBytes.") };
       const entry = {
         level: vm.getString(levelHandle) as LogEntry["level"],
         args: JSON.parse(json) as unknown[],
@@ -192,10 +175,10 @@ export function createProgramRunner(load: LoadQuickJS) {
     let abort: (() => void) | undefined;
     try {
       options.signal?.throwIfAborted();
-      const source = transform(
-        `async function __program() {\n${options.code}\n}\n__program()`,
-        { transforms: ["typescript"], filePath: "program.ts" },
-      ).code;
+      const source = transform(`async function __program() {\n${options.code}\n}\n__program()`, {
+        transforms: ["typescript"],
+        filePath: "program.ts",
+      }).code;
       const setup = vm.evalCode(`
         for (const group of ["browse", "mouse", "tab"]) {
           globalThis[group] = new Proxy({}, { get(_, fn) {
@@ -216,8 +199,7 @@ export function createProgramRunner(load: LoadQuickJS) {
             ),
           Math.max(1, deadline - Date.now()),
         );
-        abort = () =>
-          reject(options.signal?.reason ?? new Error("Program aborted."));
+        abort = () => reject(options.signal?.reason ?? new Error("Program aborted."));
         options.signal?.addEventListener("abort", abort, { once: true });
       });
       while (true) {
@@ -232,10 +214,7 @@ export function createProgramRunner(load: LoadQuickJS) {
         if (state.type === "fulfilled") {
           const value = vm.dump(state.value);
           state.value.dispose();
-          if (pending.size)
-            throw new Error(
-              "Program returned with unawaited browser commands.",
-            );
+          if (pending.size) throw new Error("Program returned with unawaited browser commands.");
           const check = encode(value);
           check.dispose();
           return {
@@ -253,8 +232,7 @@ export function createProgramRunner(load: LoadQuickJS) {
             name: detail.name ?? "Error",
           });
         }
-        if (!pending.size)
-          throw new Error("Program left an unresolved promise.");
+        if (!pending.size) throw new Error("Program left an unresolved promise.");
         await Promise.race([stopped, ...pending]);
       }
     } catch (error) {
@@ -263,11 +241,7 @@ export function createProgramRunner(load: LoadQuickJS) {
       return {
         status: "failed",
         error: {
-          name: timedOut
-            ? "RunTimeoutError"
-            : error instanceof Error
-              ? error.name
-              : "Error",
+          name: timedOut ? "RunTimeoutError" : error instanceof Error ? error.name : "Error",
           message: timedOut
             ? "Program exceeded its time or instruction budget."
             : error instanceof Error

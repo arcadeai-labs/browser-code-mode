@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  biome:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # Picks up the Biome version pinned in pnpm-lock.yaml.
+      - uses: biomejs/setup-biome@v2
+      - run: biome ci --error-on-warnings .
+
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # Installs the pnpm pinned in packageManager, then runs pnpm install.
+      # Tests run .ts files directly, which needs Node 22.18 or newer.
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@22
+          cache: true
+          require-lockfile: true
+      # The web app's type-check imports routeTree.gen.ts, which the build generates.
+      - run: pnpm build
+      - run: pnpm -r check
+      - run: pnpm test

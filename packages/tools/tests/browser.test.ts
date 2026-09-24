@@ -25,7 +25,10 @@ test("hosted sessions are created on start and released once on close", async (t
     requests.push(`${init.method} ${url}`);
     if (!url.endsWith("/sessions")) return Response.json({});
     created += 1;
-    return Response.json({ id: `session-${created}`, connectUrl: `wss://browserbase/session-${created}` });
+    return Response.json({
+      id: `session-${created}`,
+      connectUrl: `wss://browserbase/session-${created}`,
+    });
   });
 
   const browser = providerBrowser(
@@ -52,7 +55,12 @@ test("live view returns a screenshot, plus the provider's URL when it has one", 
     {
       name: "test",
       async create() {
-        return { provider: "test", cdpUrl: "ws://watched", sessionId: "s1", liveViewUrl: "https://live/s1" };
+        return {
+          provider: "test",
+          cdpUrl: "ws://watched",
+          sessionId: "s1",
+          liveViewUrl: "https://live/s1",
+        };
       },
       async shutdown() {},
     },

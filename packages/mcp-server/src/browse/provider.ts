@@ -46,9 +46,7 @@ export function staticProvider(defaultCdpUrl?: string): BrowserProvider {
 /** Adapter for vendor SDKs or REST APIs; no SDK enters the core runtime. */
 export function browserProvider(options: {
   name: string;
-  create: (
-    options: CreateBrowserOptions,
-  ) => Promise<Omit<BrowserHandle, "provider">>;
+  create: (options: CreateBrowserOptions) => Promise<Omit<BrowserHandle, "provider">>;
   shutdown: (browser: BrowserHandle) => Promise<void>;
 }): BrowserProvider {
   return {

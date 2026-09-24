@@ -10,25 +10,21 @@ import { z } from "zod";
 
 import { COMMANDS } from "./browse/commands.ts";
 import { BrowserSession, type CommandRunner } from "./browse/driver.ts";
-import {
-  staticProvider,
-  type BrowserHandle,
-  type BrowserProvider,
-} from "./browse/provider.ts";
 import { PROGRAM_GUIDE, renderApiDts, renderCheatsheet } from "./browse/dts.ts";
+import { type BrowserHandle, type BrowserProvider, staticProvider } from "./browse/provider.ts";
 import type { ServerConfig } from "./config.ts";
-import { runProgram, type ProgramResult } from "./sandbox/runner.ts";
+import { type ProgramResult, runProgram } from "./sandbox/runner.ts";
 
-export { loadConfig, type ServerConfig } from "./config.ts";
+export { PROGRAM_GUIDE, renderApiDts, renderCheatsheet } from "./browse/dts.ts";
 export {
-  browserProvider,
-  staticProvider,
-  NoBrowserError,
   type BrowserHandle,
   type BrowserProvider,
+  browserProvider,
+  NoBrowserError,
+  staticProvider,
 } from "./browse/provider.ts";
 export { providerFromEnv } from "./browse/providers.ts";
-export { PROGRAM_GUIDE, renderApiDts, renderCheatsheet } from "./browse/dts.ts";
+export { loadConfig, type ServerConfig } from "./config.ts";
 export type { ProgramResult, RunLimits } from "./sandbox/runner.ts";
 
 export const INSTRUCTIONS =
@@ -157,9 +153,10 @@ export function runToolDescription(config: ServerConfig, browserLine?: string): 
     `read, filter — into one program and return just the data you need. Intermediate page`,
     `content stays in the sandbox instead of entering your context.`,
     ``,
-    browserLine ?? (config.defaultCdpUrl
-      ? `Browser: the CDP endpoint at \`${config.defaultCdpUrl}\`. Pass \`cdpUrl\` to drive a different one.`
-      : "Browser: pass `cdpUrl` to reuse a browser, or omit it to create a temporary browser with the configured provider."),
+    browserLine ??
+      (config.defaultCdpUrl
+        ? `Browser: the CDP endpoint at \`${config.defaultCdpUrl}\`. Pass \`cdpUrl\` to drive a different one.`
+        : "Browser: pass `cdpUrl` to reuse a browser, or omit it to create a temporary browser with the configured provider."),
     ``,
     `Each program attaches to the browser, runs, and detaches. Page state (tabs,`,
     `cookies, scroll) belongs to that browser and persists; snapshot refs do not,`,
@@ -214,9 +211,7 @@ export async function executeBrowserRun(
 
   let lease: BrowserHandle;
   try {
-    lease = cdpUrl
-      ? { provider: "cdp", cdpUrl }
-      : await provider.create(signal ? { signal } : {});
+    lease = cdpUrl ? { provider: "cdp", cdpUrl } : await provider.create(signal ? { signal } : {});
   } catch (error) {
     return failure(describeError(error));
   }
@@ -281,11 +276,16 @@ export async function executeBrowserRun(
 /** Attach, take one JPEG of the current page, detach. Returns base64. */
 export async function captureScreenshot(
   cdpUrl: string,
-  { connect = connectOverCdp, signal }: { connect?: ToolDeps["connect"]; signal?: AbortSignal | undefined } = {},
+  {
+    connect = connectOverCdp,
+    signal,
+  }: { connect?: ToolDeps["connect"]; signal?: AbortSignal | undefined } = {},
 ): Promise<string> {
   const session = await connect({ cdpUrl, ...(signal ? { signal } : {}) });
   try {
-    const result = (await session.run("screenshot", { type: "jpeg", quality: 70 })) as { base64: string };
+    const result = (await session.run("screenshot", { type: "jpeg", quality: 70 })) as {
+      base64: string;
+    };
     return result.base64;
   } finally {
     await session.close();

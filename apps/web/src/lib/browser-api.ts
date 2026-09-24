@@ -1,12 +1,15 @@
-import { mcpHeaders } from "./env.ts";
 import { fetchBrowserApp } from "./browser-app.ts";
+import { mcpHeaders } from "./env.ts";
 
 /** Browser API calls are bounded; navigation/HMR cancellation is not a 500. */
-export async function proxyBrowserRequest(request: Request, path: "/browser" | "/screen", dispatch = fetchBrowserApp): Promise<Response> {
+export async function proxyBrowserRequest(
+  request: Request,
+  path: "/browser" | "/screen",
+  dispatch = fetchBrowserApp,
+): Promise<Response> {
   try {
-    const body = path === "/screen" || request.method === "DELETE"
-      ? await request.text()
-      : undefined;
+    const body =
+      path === "/screen" || request.method === "DELETE" ? await request.text() : undefined;
     const response = await dispatch(new URL(path, "http://browse.internal"), {
       method: request.method,
       headers: { ...mcpHeaders(), "content-type": "application/json" },
@@ -26,10 +29,13 @@ export async function proxyBrowserRequest(request: Request, path: "/browser" | "
   } catch (error) {
     if (request.signal.aborted) return new Response(null, { status: 499 });
     const timedOut = error instanceof Error && error.name === "TimeoutError";
-    return Response.json({
-      error: timedOut
-        ? "The browser service took too long to respond. Try again."
-        : "Cannot reach the browser service. Make sure pnpm dev is running, then try again.",
-    }, { status: timedOut ? 504 : 502 });
+    return Response.json(
+      {
+        error: timedOut
+          ? "The browser service took too long to respond. Try again."
+          : "Cannot reach the browser service. Make sure pnpm dev is running, then try again.",
+      },
+      { status: timedOut ? 504 : 502 },
+    );
   }
 }

@@ -16,7 +16,7 @@ interface BrowserHandle {
 }
 
 async function responseError(response: Response): Promise<string> {
-  const body = await response.json().catch(() => null) as { error?: string } | null;
+  const body = (await response.json().catch(() => null)) as { error?: string } | null;
   return body?.error ?? `Browser request failed (HTTP ${response.status}).`;
 }
 
@@ -47,7 +47,9 @@ function Home() {
       try {
         if (next) sessionStorage.setItem("browse.browser", JSON.stringify(next));
         else sessionStorage.removeItem("browse.browser");
-      } catch { /* A blocked storage API must not prevent using the browser. */ }
+      } catch {
+        /* A blocked storage API must not prevent using the browser. */
+      }
     } catch (error) {
       setError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -56,28 +58,31 @@ function Home() {
   };
   return (
     <div className="split">
-      <div
-        className="viewport"
-        style={{ display: "flex", flexDirection: "column" }}
-      >
+      <div className="viewport" style={{ display: "flex", flexDirection: "column" }}>
         <div style={{ padding: 12 }}>
-          <button onClick={() => void lifecycle()} disabled={busy}>
+          <button type="button" onClick={() => void lifecycle()} disabled={busy}>
             {busy ? "Working…" : browser ? "Stop browser" : "Start browser"}
           </button>
-          {browser ? <span role="status" style={{ marginLeft: 12 }}>Browser connected</span> : null}
-          {error ? <div className="error" role="alert">{error}</div> : null}
+          {browser ? (
+            <span role="status" style={{ marginLeft: 12 }}>
+              Browser connected
+            </span>
+          ) : null}
+          {error ? (
+            <div className="error" role="alert">
+              {error}
+            </div>
+          ) : null}
         </div>
         {browser ? (
           <LiveView browser={browser} />
         ) : (
-          <div className="viewport-empty" style={{ position: "static", flex: 1 }}>Start a browser to begin.</div>
+          <div className="viewport-empty" style={{ position: "static", flex: 1 }}>
+            Start a browser to begin.
+          </div>
         )}
       </div>
-      {browser ? (
-        <Chat key={browser.cdpUrl} cdpUrl={browser.cdpUrl} />
-      ) : (
-        <div className="chat" />
-      )}
+      {browser ? <Chat key={browser.cdpUrl} cdpUrl={browser.cdpUrl} /> : <div className="chat" />}
     </div>
   );
 }
@@ -154,9 +159,19 @@ function LiveView({ browser }: { browser: BrowserHandle }) {
       {src ? (
         <img className="frame" src={src} alt="" />
       ) : (
-        <div className="viewport-empty">{error ? "Browser preview unavailable" : "Waiting for the browser…"}</div>
+        <div className="viewport-empty">
+          {error ? "Browser preview unavailable" : "Waiting for the browser…"}
+        </div>
       )}
-      {error ? <div className="error" role="alert" style={{ position: "absolute", bottom: 16, left: 16, right: 16 }}>{error} Retrying…</div> : null}
+      {error ? (
+        <div
+          className="error"
+          role="alert"
+          style={{ position: "absolute", bottom: 16, left: 16, right: 16 }}
+        >
+          {error} Retrying…
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -172,6 +187,7 @@ function Chat({ cdpUrl }: { cdpUrl: string }) {
 
   // Scroll the list itself. `scrollIntoView` walks up the ancestor chain and
   // will scroll the document too, which drags the whole two-pane layout.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the dependencies are the triggers; the effect reads only the ref.
   useEffect(() => {
     const list = listRef.current;
     if (list) list.scrollTop = list.scrollHeight;
@@ -207,11 +223,7 @@ function Chat({ cdpUrl }: { cdpUrl: string }) {
           placeholder="Ask the browser to do something"
           rows={1}
         />
-        <button
-          type="button"
-          onClick={submit}
-          disabled={busy || input.trim().length === 0}
-        >
+        <button type="button" onClick={submit} disabled={busy || input.trim().length === 0}>
           Send
         </button>
       </div>
@@ -222,30 +234,39 @@ function Chat({ cdpUrl }: { cdpUrl: string }) {
 function Message({ message }: { message: UIMessage }) {
   return (
     <div className={`msg msg-${message.role}`}>
-      {message.parts.map((part, index) => {
-        if (part.type === "text") {
-          if (!part.text.trim()) return null;
-          // Assistant replies use tables and lists, so they render as markdown;
-          // a user's own words are shown verbatim rather than reinterpreted as
-          // markup. Streamdown rather than react-markdown because it renders
-          // markdown that is still arriving, so a half-written table or fence
-          // does not flash as raw text mid-stream.
-          return message.role === "assistant" ? (
-            <div key={index} className="bubble markdown">
-              <Streamdown>{part.text}</Streamdown>
-            </div>
-          ) : (
-            <div key={index} className="bubble">
-              {part.text}
-            </div>
-          );
-        }
-
-        const call = asToolCall(part);
-        return call ? <ToolCall key={index} call={call} /> : null;
-      })}
+      {message.parts.map((part, index) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: parts only append and text parts have no id, so the index is stable.
+        <MessagePart key={index} role={message.role} part={part} />
+      ))}
     </div>
   );
+}
+
+function MessagePart({
+  role,
+  part,
+}: {
+  role: UIMessage["role"];
+  part: UIMessage["parts"][number];
+}) {
+  if (part.type === "text") {
+    if (!part.text.trim()) return null;
+    // Assistant replies use tables and lists, so they render as markdown;
+    // a user's own words are shown verbatim rather than reinterpreted as
+    // markup. Streamdown rather than react-markdown because it renders
+    // markdown that is still arriving, so a half-written table or fence
+    // does not flash as raw text mid-stream.
+    return role === "assistant" ? (
+      <div className="bubble markdown">
+        <Streamdown>{part.text}</Streamdown>
+      </div>
+    ) : (
+      <div className="bubble">{part.text}</div>
+    );
+  }
+
+  const call = asToolCall(part);
+  return call ? <ToolCall call={call} /> : null;
 }
 
 interface ToolCallView {
@@ -261,8 +282,7 @@ interface ToolCallView {
  * a tool-specific part type that only exists for statically declared tools.
  */
 function asToolCall(part: UIMessage["parts"][number]): ToolCallView | null {
-  if (part.type !== "dynamic-tool" && !part.type.startsWith("tool-"))
-    return null;
+  if (part.type !== "dynamic-tool" && !part.type.startsWith("tool-")) return null;
   const record = part as unknown as {
     type: string;
     toolName?: string;
@@ -284,8 +304,7 @@ function ToolCall({ call }: { call: ToolCallView }) {
   const code = codeOf(call.input);
   const output = call.errorText ?? textOf(call.output);
   const failed = Boolean(call.errorText) || call.state === "output-error";
-  const running =
-    call.state === "input-streaming" || call.state === "input-available";
+  const running = call.state === "input-streaming" || call.state === "input-available";
 
   return (
     <details

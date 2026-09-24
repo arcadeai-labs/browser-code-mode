@@ -8,10 +8,9 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { dynamicTool, jsonSchema, type JSONSchema7, type ToolSet } from "ai";
-
-import { mcpHeaders } from "./env.ts";
+import { dynamicTool, type JSONSchema7, jsonSchema, type ToolSet } from "ai";
 import { fetchBrowserApp } from "./browser-app.ts";
+import { mcpHeaders } from "./env.ts";
 
 export interface McpSession {
   tools: ToolSet;

@@ -6,8 +6,8 @@
 import { serve } from "@hono/node-server";
 
 import { createApp } from "./app.ts";
-import { loadConfig } from "./config.ts";
 import { providerFromEnv } from "./browse/providers.ts";
+import { loadConfig } from "./config.ts";
 
 const command = process.argv[2];
 if (command && command !== "dev" && command !== "serve") {
@@ -17,9 +17,7 @@ if (command && command !== "dev" && command !== "serve") {
 // Local process ownership is confined to CLI dev, never the fetch application.
 const startup = new AbortController();
 let local: import("./node/local-browser.ts").LocalBrowser | undefined;
-let starting:
-  | Promise<import("./node/local-browser.ts").LocalBrowser>
-  | undefined;
+let starting: Promise<import("./node/local-browser.ts").LocalBrowser> | undefined;
 let stopping = false;
 const stop = async () => {
   if (stopping) return;
@@ -66,22 +64,17 @@ try {
     }),
   });
 
-  server = serve(
-    { fetch: app.fetch, hostname: config.host, port: config.port },
-    (info) => {
-      log(`listening on http://${config.host}:${info.port}${config.endpoint}`);
-      log(
-        config.defaultCdpUrl
-          ? `default browser: ${config.defaultCdpUrl}`
-          : "no BROWSE_CDP_URL set: callers must pass cdpUrl per request",
-      );
-      if (!config.authToken) {
-        log(
-          "no MCP_AUTH_TOKEN set: every caller on this host can drive the browser",
-        );
-      }
-    },
-  );
+  server = serve({ fetch: app.fetch, hostname: config.host, port: config.port }, (info) => {
+    log(`listening on http://${config.host}:${info.port}${config.endpoint}`);
+    log(
+      config.defaultCdpUrl
+        ? `default browser: ${config.defaultCdpUrl}`
+        : "no BROWSE_CDP_URL set: callers must pass cdpUrl per request",
+    );
+    if (!config.authToken) {
+      log("no MCP_AUTH_TOKEN set: every caller on this host can drive the browser");
+    }
+  });
 
   server.on("error", async (error) => {
     console.error(error);

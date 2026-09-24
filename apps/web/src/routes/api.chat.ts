@@ -1,14 +1,9 @@
 import { anthropic } from "@ai-sdk/anthropic";
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  convertToModelMessages,
-  stepCountIs,
-  streamText,
-  type UIMessage,
-} from "ai";
+import { convertToModelMessages, stepCountIs, streamText, type UIMessage } from "ai";
 
 import { env } from "../lib/env.ts";
-import { openMcpSession } from "../lib/mcp.ts";
+import { type McpSession, openMcpSession } from "../lib/mcp.ts";
 
 const SYSTEM = `You drive a real web browser by writing TypeScript programs and running them with the browser_run tool.
 
@@ -40,12 +35,9 @@ export const Route = createFileRoute("/api/chat")({
           cdpUrl?: string;
         };
         if (!cdpUrl || typeof cdpUrl !== "string")
-          return Response.json(
-            { error: "Start a browser first." },
-            { status: 400 },
-          );
+          return Response.json({ error: "Start a browser first." }, { status: 400 });
 
-        let session;
+        let session: McpSession;
         try {
           session = await openMcpSession(cdpUrl);
         } catch (error) {

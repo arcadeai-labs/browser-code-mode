@@ -13,16 +13,20 @@
 
 import { NodeHtmlMarkdown } from "node-html-markdown";
 import {
-  connectBrowser,
   type BrowserContext,
+  connectBrowser,
   type LoadState,
   type MouseButton,
   type Page,
 } from "./page.ts";
+import {
+  emptyRefMaps,
+  type FrameTarget,
+  type RefMaps,
+  type ResolvedSelector,
+  resolveSelector,
+} from "./selectors.ts";
 import type { OpenSocket } from "./transport.ts";
-
-
-import { emptyRefMaps, resolveSelector, type FrameTarget, type RefMaps, type ResolvedSelector } from "./selectors.ts";
 
 /** Raised for command-level failures, mirroring the CLI's error surface. */
 export class BrowseCommandError extends Error {
@@ -76,7 +80,12 @@ export class BrowserSession implements CommandRunner {
   }
 
   /** Attach to a browser that already exists. */
-  static async connect({ cdpUrl, signal, onEvent, openSocket }: ConnectOptions): Promise<BrowserSession> {
+  static async connect({
+    cdpUrl,
+    signal,
+    onEvent,
+    openSocket,
+  }: ConnectOptions): Promise<BrowserSession> {
     const context = await connectBrowser(cdpUrl, signal, openSocket);
     onEvent?.("attached over CDP");
     return new BrowserSession(context, cdpUrl);
@@ -89,7 +98,10 @@ export class BrowserSession implements CommandRunner {
   async run(command: string, params: Params): Promise<unknown> {
     const handler = HANDLERS[command];
     if (!handler) throw new BrowseCommandError(`Unknown command "${command}".`);
-    if (["open", "reload", "back", "forward", "tab.new", "tab.switch", "tab.close"].includes(command)) this.setRefMaps({});
+    if (
+      ["open", "reload", "back", "forward", "tab.new", "tab.switch", "tab.close"].includes(command)
+    )
+      this.setRefMaps({});
     return handler(this, params);
   }
 
@@ -340,13 +352,18 @@ const HANDLERS: Record<string, Handler> = {
     const quality = optNum(params, "quality");
     const clip = params.clip;
     const buffer = await page.screenshot({
-      ...(optBool(params, "fullPage") === undefined ? {} : { fullPage: optBool(params, "fullPage") }),
+      ...(optBool(params, "fullPage") === undefined
+        ? {}
+        : { fullPage: optBool(params, "fullPage") }),
       ...(type === undefined ? {} : { type: type as "png" | "jpeg" }),
       ...(quality === undefined ? {} : { quality }),
       ...(clip === undefined ? {} : { clip: clip as never }),
     });
 
-    if (optStr(params, "path")) throw new BrowseCommandError("Screenshot paths are unavailable; use the returned base64 data.");
+    if (optStr(params, "path"))
+      throw new BrowseCommandError(
+        "Screenshot paths are unavailable; use the returned base64 data.",
+      );
     return { base64: buffer };
   },
 
@@ -377,7 +394,9 @@ const HANDLERS: Record<string, Handler> = {
     } else if (type === "timeout") {
       const ms = Number(arg ?? 0);
       if (!Number.isInteger(ms) || ms < 0) {
-        throw new BrowseCommandError("wait timeout requires a non-negative integer of milliseconds.");
+        throw new BrowseCommandError(
+          "wait timeout requires a non-negative integer of milliseconds.",
+        );
       }
       await page.waitForTimeout(ms);
     } else {
@@ -487,7 +506,14 @@ const HANDLERS: Record<string, Handler> = {
     const active = await context.activePage();
     const resolved = tab
       ? await resolveTab(session, tab)
-      : { index: Math.max(0, pages.findIndex((p) => p.pageId === active?.pageId)), page: active ?? pages[0]! };
+      : {
+          index: Math.max(
+            0,
+            pages.findIndex((p) => p.pageId === active?.pageId),
+          ),
+          page: active ?? pages[0],
+        };
+    if (!resolved.page) throw new BrowseCommandError("No tab is open.");
 
     const closedTargetId = resolved.page.pageId;
     await resolved.page.close();
@@ -538,10 +564,11 @@ async function resolveTab(
   }
 
   const index = pages.findIndex((page) => page.pageId === tab);
-  if (index === -1) {
+  const page = pages[index];
+  if (!page) {
     throw new BrowseCommandError(`Tab "${tab}" was not found. Call tab.list() for current tabs.`);
   }
-  return { index, page: pages[index]! };
+  return { index, page };
 }
 
 async function safeTitle(page: Page): Promise<string> {
@@ -607,17 +634,15 @@ export function formatTree(
   if (filter) {
     const match = matcher(filter);
     const keep = new Set<number>();
-    const ancestors: number[] = [];
+    const ancestors: Array<{ index: number; depth: number }> = [];
     lines.forEach((line, index) => {
       const depth = indentWidth(line);
-      while (ancestors.length > 0 && indentWidth(lines[ancestors.at(-1)!]!) >= depth) {
-        ancestors.pop();
-      }
+      while ((ancestors.at(-1)?.depth ?? -1) >= depth) ancestors.pop();
       if (match(line)) {
         keep.add(index);
-        for (const ancestor of ancestors) keep.add(ancestor);
+        for (const ancestor of ancestors) keep.add(ancestor.index);
       }
-      ancestors.push(index);
+      ancestors.push({ index, depth });
     });
     lines = lines.filter((_, index) => keep.has(index));
   }

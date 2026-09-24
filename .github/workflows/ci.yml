@@ -13,9 +13,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      # Picks up the Biome version pinned in pnpm-lock.yaml.
-      - uses: biomejs/setup-biome@v2
-      - run: biome ci --error-on-warnings .
+      # biome.json loads biome-plugin-no-type-assertion from node_modules, so
+      # install dependencies rather than using a standalone Biome binary.
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@22
+          cache: true
+          require-lockfile: true
+      - run: pnpm exec biome ci --error-on-warnings .
 
   check:
     runs-on: ubuntu-latest

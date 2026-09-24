@@ -14,26 +14,30 @@
 import { createTool } from "@mastra/core/tools";
 
 import {
-  createBrowserToolkit,
-  liveViewModelOutput,
-  toModelOutput,
-  type BrowserRunOutput,
-  type LiveView,
   type Browser,
+  type BrowserRunOutput,
   type BrowserToolkit,
   type BrowserToolsOptions,
+  createBrowserToolkit,
+  type LiveView,
+  liveViewModelOutput,
   type SessionToolkit,
+  toModelOutput,
 } from "./index.ts";
 
-export { instructions, type BrowserToolsOptions, type BrowserRunOutput } from "./index.ts";
+export { type BrowserRunOutput, type BrowserToolsOptions, instructions } from "./index.ts";
 
 type RunTools = ReturnType<typeof runTools>;
 type SessionTools = ReturnType<typeof sessionTools>;
 
 /** With a `browser`, the session tools join `browser_api` and `browser_run`. */
-export function browserTools(options: BrowserToolsOptions & { browser: Browser }): RunTools & SessionTools;
+export function browserTools(
+  options: BrowserToolsOptions & { browser: Browser },
+): RunTools & SessionTools;
 export function browserTools(options?: BrowserToolsOptions): RunTools;
-export function browserTools(options: BrowserToolsOptions = {}): RunTools | (RunTools & SessionTools) {
+export function browserTools(
+  options: BrowserToolsOptions = {},
+): RunTools | (RunTools & SessionTools) {
   const toolkit = createBrowserToolkit(options);
   const tools = runTools(toolkit);
   return toolkit.sessions ? { ...tools, ...sessionTools(toolkit.sessions) } : tools;

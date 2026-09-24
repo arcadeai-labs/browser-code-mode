@@ -1,13 +1,13 @@
 /** Direct CDP implementation: no browser extension, filesystem, or Node APIs. */
-import { CdpConnection, openWebSocket, type OpenSocket } from "./transport.ts";
+
 import { resolveCdpUrl } from "./cdp.ts";
 import type { FrameTarget, ResolvedSelector } from "./selectors.ts";
+import { CdpConnection, type OpenSocket, openWebSocket } from "./transport.ts";
 
 export type LoadState = "load" | "domcontentloaded" | "networkidle";
 export type MouseButton = "left" | "middle" | "right";
 type NavigationOptions = { timeout?: number; waitUntil?: LoadState };
-const pause = (ms: number) =>
-  new Promise<void>((resolve) => setTimeout(resolve, ms));
+const pause = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export async function connectBrowser(
   cdpUrl: string,
@@ -57,8 +57,7 @@ export class BrowserContext {
     const selected = pages.find((p) => p.pageId === this.selected);
     if (selected) return selected;
     for (const page of pages) {
-      if (await page.evaluate("document.hasFocus()").catch(() => false))
-        return page;
+      if (await page.evaluate("document.hasFocus()").catch(() => false)) return page;
     }
     return pages[0];
   }
@@ -93,12 +92,7 @@ export class Page {
   /** Each session's frames → the id of their main-world execution context. */
   private worlds = new Map<string, Map<string, number>>();
   private runtimeEnabled = new Map<string, Promise<unknown>>();
-  constructor(
-    cdp: CdpConnection,
-    id: string,
-    sessionId: string,
-    signal?: AbortSignal,
-  ) {
+  constructor(cdp: CdpConnection, id: string, sessionId: string, signal?: AbortSignal) {
     this.cdp = cdp;
     this.pageId = id;
     this.sessionId = sessionId;
@@ -127,10 +121,7 @@ export class Page {
       if (method === "Network.requestWillBeSent") {
         this.requests.add(params.requestId);
         this.networkChangedAt = Date.now();
-      } else if (
-        method === "Network.loadingFinished" ||
-        method === "Network.loadingFailed"
-      ) {
+      } else if (method === "Network.loadingFinished" || method === "Network.loadingFailed") {
         this.requests.delete(params.requestId);
         this.networkChangedAt = Date.now();
       }
@@ -168,8 +159,7 @@ export class Page {
   }
   private ownsSession(session: string | undefined): boolean {
     if (session === this.sessionId) return true;
-    for (const frame of this.oopifs.values())
-      if (frame.sessionId === session) return true;
+    for (const frame of this.oopifs.values()) if (frame.sessionId === session) return true;
     return false;
   }
   private trackWorld(session: string, method: string, params: any) {
@@ -207,7 +197,9 @@ export class Page {
       awaitPromise: true,
     });
     if (response.exceptionDetails)
-      throw new Error(response.exceptionDetails.exception?.description ?? response.exceptionDetails.text);
+      throw new Error(
+        response.exceptionDetails.exception?.description ?? response.exceptionDetails.text,
+      );
     return response.result.value;
   }
   /** Wait until every nested iframe target has been attached. */
@@ -230,7 +222,9 @@ export class Page {
       const entry = [...this.oopifs].find(([, frame]) => frame.sessionId === sessionId);
       if (!entry) throw new Error("The element's frame is no longer attached.");
       const [frameId, { parentSessionId }] = entry;
-      const { backendNodeId } = await this.sendTo(parentSessionId, "DOM.getFrameOwner", { frameId });
+      const { backendNodeId } = await this.sendTo(parentSessionId, "DOM.getFrameOwner", {
+        frameId,
+      });
       const { model } = await this.sendTo(parentSessionId, "DOM.getBoxModel", { backendNodeId });
       x += model.content[0];
       y += model.content[1];
@@ -247,11 +241,18 @@ export class Page {
     ];
     const perSession = await Promise.all(
       sessions.map(async ({ sessionId, parentSessionId }) => {
-        const { frameTree } = await this.sendTo(sessionId, "Page.getFrameTree").catch(() => ({ frameTree: undefined }));
+        const { frameTree } = await this.sendTo(sessionId, "Page.getFrameTree").catch(() => ({
+          frameTree: undefined,
+        }));
         if (!frameTree) return [];
         const found: SnapshotFrame[] = [];
         const walk = (node: any, root: boolean) => {
-          found.push({ frameId: node.frame.id, sessionId, ownerSession: root ? parentSessionId : sessionId, nodes: [] });
+          found.push({
+            frameId: node.frame.id,
+            sessionId,
+            ownerSession: root ? parentSessionId : sessionId,
+            nodes: [],
+          });
           for (const child of node.childFrames ?? []) walk(child, false);
         };
         walk(frameTree, true);
@@ -263,9 +264,13 @@ export class Page {
       frames.map(async (frame) => {
         // A frame can navigate or detach mid-snapshot; leave it out rather than fail.
         const [tree, owner] = await Promise.all([
-          this.sendTo(frame.sessionId, "Accessibility.getFullAXTree", { frameId: frame.frameId }).catch(() => undefined),
+          this.sendTo(frame.sessionId, "Accessibility.getFullAXTree", {
+            frameId: frame.frameId,
+          }).catch(() => undefined),
           frame.ownerSession
-            ? this.sendTo(frame.ownerSession, "DOM.getFrameOwner", { frameId: frame.frameId }).catch(() => undefined)
+            ? this.sendTo(frame.ownerSession, "DOM.getFrameOwner", {
+                frameId: frame.frameId,
+              }).catch(() => undefined)
             : undefined,
         ]);
         frame.nodes = tree?.nodes ?? [];
@@ -282,8 +287,7 @@ export class Page {
     });
     if (response.exceptionDetails)
       throw new Error(
-        response.exceptionDetails.exception?.description ??
-          response.exceptionDetails.text,
+        response.exceptionDetails.exception?.description ?? response.exceptionDetails.text,
       );
     return response.result.value;
   }
@@ -305,8 +309,7 @@ export class Page {
   private async history(delta: number, options: NavigationOptions) {
     const history = await this.send("Page.getNavigationHistory");
     const entry = history.entries[history.currentIndex + delta];
-    if (entry)
-      await this.send("Page.navigateToHistoryEntry", { entryId: entry.id });
+    if (entry) await this.send("Page.navigateToHistoryEntry", { entryId: entry.id });
     await this.waitForLoadState(options.waitUntil ?? "load", options.timeout);
   }
   goBack(options: NavigationOptions = {}) {
@@ -326,18 +329,13 @@ export class Page {
       const started = Date.now();
       return this.poll(
         async () =>
-          this.requests.size === 0 &&
-          Date.now() - Math.max(started, this.networkChangedAt) >= 500,
+          this.requests.size === 0 && Date.now() - Math.max(started, this.networkChangedAt) >= 500,
         timeout,
       );
     }
     await this.poll(async () => {
-      const ready = await this.evaluate("document.readyState").catch(
-        () => "loading",
-      );
-      return state === "domcontentloaded"
-        ? ready !== "loading"
-        : ready === "complete";
+      const ready = await this.evaluate("document.readyState").catch(() => "loading");
+      return state === "domcontentloaded" ? ready !== "loading" : ready === "complete";
     }, timeout);
   }
   async poll(check: () => Promise<boolean>, timeout: number) {
@@ -379,8 +377,7 @@ export class Page {
     const parts = combo.split("+");
     const key = parts.pop()!;
     const modifiers = parts.reduce(
-      (n, p) =>
-        n | ({ Alt: 1, Control: 2, Ctrl: 2, Meta: 4, Shift: 8 }[p] ?? 0),
+      (n, p) => n | ({ Alt: 1, Control: 2, Ctrl: 2, Meta: 4, Shift: 8 }[p] ?? 0),
       0,
     );
     const codes: Record<string, number> = {
@@ -399,12 +396,7 @@ export class Page {
       PageDown: 34,
     };
     const code = codes[key] ?? key.toUpperCase().charCodeAt(0);
-    const text =
-      key === "Enter"
-        ? "\r"
-        : key.length === 1 && !(modifiers & 7)
-          ? key
-          : undefined;
+    const text = key === "Enter" ? "\r" : key.length === 1 && !(modifiers & 7) ? key : undefined;
     await this.send("Input.dispatchKeyEvent", {
       type: "keyDown",
       key,
@@ -419,10 +411,7 @@ export class Page {
       windowsVirtualKeyCode: code,
     });
   }
-  async type(
-    text: string,
-    options?: { delay?: number; withMistakes?: boolean },
-  ) {
+  async type(text: string, options?: { delay?: number; withMistakes?: boolean }) {
     if (options?.delay || options?.withMistakes)
       for (const char of text) {
         if (options.withMistakes && Math.random() < 0.08) {
@@ -438,10 +427,7 @@ export class Page {
   async click(
     x: number,
     y: number,
-    {
-      button = "left",
-      clickCount = 1,
-    }: { button?: MouseButton; clickCount?: number } = {},
+    { button = "left", clickCount = 1 }: { button?: MouseButton; clickCount?: number } = {},
   ) {
     await this.hover(x, y);
     await this.send("Input.dispatchMouseEvent", {
@@ -524,9 +510,7 @@ export class Page {
     const { data } = await this.send("Page.captureScreenshot", {
       format: options.type ?? "png",
       ...(options.quality === undefined ? {} : { quality: options.quality }),
-      ...(clip
-        ? { clip: { ...clip, scale: 1 }, captureBeyondViewport: true }
-        : {}),
+      ...(clip ? { clip: { ...clip, scale: 1 }, captureBeyondViewport: true } : {}),
     });
     return data as string;
   }
@@ -578,7 +562,8 @@ export class Page {
         if (shown && ref) {
           // Resolve refs using backend node IDs, never a server-side page registry.
           xpathMap[ref] = `backend=${node.backendDOMNodeId}`;
-          const url = node.properties?.find((p: { name: string }) => p.name === "url")?.value?.value;
+          const url = node.properties?.find((p: { name: string }) => p.name === "url")?.value
+            ?.value;
           if (url) urlMap[ref] = url;
         }
         if (shown)
@@ -588,7 +573,8 @@ export class Page {
         const childDepth = depth + (shown ? 1 : 0);
         for (const child of node.childIds ?? [])
           visit(byId.get(child), childDepth, node.ignored ? parentName : name);
-        const inner = node.backendDOMNodeId && hosted.get(`${frame.sessionId}:${node.backendDOMNodeId}`);
+        const inner =
+          node.backendDOMNodeId && hosted.get(`${frame.sessionId}:${node.backendDOMNodeId}`);
         if (inner) renderFrame(inner, childDepth);
       };
       for (const node of frame.nodes)
@@ -681,7 +667,9 @@ export class Locator {
       if (index === hops.length - 1) return { sessionId, objectId: result.objectId };
 
       // Step into the iframe this hop matched.
-      const { node } = await this.page.sendTo(sessionId, "DOM.describeNode", { objectId: result.objectId });
+      const { node } = await this.page.sendTo(sessionId, "DOM.describeNode", {
+        objectId: result.objectId,
+      });
       await this.page.sendTo(sessionId, "Runtime.releaseObject", { objectId: result.objectId });
       if (!node.frameId) throw new Error(`"${hop}" is not an iframe, so ">>" cannot enter it.`);
       await this.page.settleFrames();
@@ -692,10 +680,14 @@ export class Locator {
         contextId = undefined;
       } else {
         // Same process: an isolated world shares the frame's DOM.
-        ({ executionContextId: contextId } = await this.page.sendTo(sessionId, "Page.createIsolatedWorld", {
-          frameId: node.frameId,
-          worldName: "browse",
-        }));
+        ({ executionContextId: contextId } = await this.page.sendTo(
+          sessionId,
+          "Page.createIsolatedWorld",
+          {
+            frameId: node.frameId,
+            worldName: "browse",
+          },
+        ));
       }
     }
     return null;
@@ -732,7 +724,9 @@ export class Locator {
         awaitPromise: true,
       });
       if (result.exceptionDetails)
-        throw new Error(result.exceptionDetails.exception?.description ?? "Element operation failed.");
+        throw new Error(
+          result.exceptionDetails.exception?.description ?? "Element operation failed.",
+        );
       return result.result.value;
     } finally {
       await this.page
@@ -782,19 +776,13 @@ export class Locator {
     );
   }
   textContent(): Promise<string> {
-    return this.apply(
-      "if (!el) throw new Error('Element not found'); return el.textContent;",
-    );
+    return this.apply("if (!el) throw new Error('Element not found'); return el.textContent;");
   }
   innerHtml(): Promise<string> {
-    return this.apply(
-      "if (!el) throw new Error('Element not found'); return el.innerHTML;",
-    );
+    return this.apply("if (!el) throw new Error('Element not found'); return el.innerHTML;");
   }
   inputValue(): Promise<string> {
-    return this.apply(
-      "if (!el) throw new Error('Element not found'); return el.value;",
-    );
+    return this.apply("if (!el) throw new Error('Element not found'); return el.value;");
   }
   isVisible(): Promise<boolean> {
     return this.apply(

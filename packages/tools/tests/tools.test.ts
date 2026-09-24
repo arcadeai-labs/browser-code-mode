@@ -5,14 +5,14 @@ import { generateText, stepCountIs } from "ai";
 import { MockLanguageModelV4 } from "ai/test";
 
 import { browserTools as aiSdkTools } from "../src/ai-sdk.ts";
-import { browserTools as mastraTools } from "../src/mastra.ts";
 import {
-  providerBrowser,
   type BrowserRunOutput,
   type BrowserToolsOptions,
   type LiveView,
+  providerBrowser,
   type SessionSummary,
 } from "../src/index.ts";
+import { browserTools as mastraTools } from "../src/mastra.ts";
 
 /** Answers commands like a page titled "Fake"; no Chrome needed. */
 function fakeBrowser() {
@@ -46,14 +46,16 @@ test("AI SDK: the model runs a program and reads the compact result text", async
       prompts.push(prompt);
       if (prompts.length === 1) {
         return {
-          content: [{
-            type: "tool-call",
-            toolCallId: "call-1",
-            toolName: "browser_run",
-            input: JSON.stringify({
-              code: `await browse.open("https://example.com"); return (await browse.get("title")).title;`,
-            }),
-          }],
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call-1",
+              toolName: "browser_run",
+              input: JSON.stringify({
+                code: `await browse.open("https://example.com"); return (await browse.get("title")).title;`,
+              }),
+            },
+          ],
           finishReason: { unified: "tool-calls", raw: undefined },
           usage,
           warnings: [],
@@ -98,7 +100,11 @@ test("AI SDK: a failed program is reported to the model as an error", async () =
   )) as BrowserRunOutput;
   assert.equal(output.isError, true);
   assert.match(output.text, /unexpected command back/);
-  const modelOutput = await tools.browser_run.toModelOutput!({ toolCallId: "1", input: { code: "" }, output });
+  const modelOutput = await tools.browser_run.toModelOutput!({
+    toolCallId: "1",
+    input: { code: "" },
+    output,
+  });
   assert.equal(modelOutput.type, "error-text");
 });
 
@@ -107,7 +113,10 @@ test("Mastra: tools share ids, descriptions, and execution", async () => {
   const tools = mastraTools({ cdpUrl: "ws://fake", connect, env: {} });
   assert.equal(tools.browser_run.id, "browser_run");
   assert.match(tools.browser_run.description, /Evaluate a TypeScript program/);
-  assert.match(await tools.browser_api.execute!({}, {} as never) as string, /declare const browse/);
+  assert.match(
+    (await tools.browser_api.execute!({}, {} as never)) as string,
+    /declare const browse/,
+  );
 
   const output = (await tools.browser_run.execute!(
     { code: `return (await browse.get("title")).title;` },
@@ -134,7 +143,10 @@ test("without cdpUrl, each program leases and releases a provider browser", asyn
       },
     },
   });
-  await tools.browser_run.execute!({ code: `return 1;` }, { toolCallId: "1", messages: [], context: {} });
+  await tools.browser_run.execute!(
+    { code: `return 1;` },
+    { toolCallId: "1", messages: [], context: {} },
+  );
   assert.deepEqual(lifecycle, ["create", "shutdown"]);
   assert.deepEqual(state.endpoints, ["ws://leased"]);
 });
@@ -172,7 +184,10 @@ test("with a Browser, the model starts a session, drives it by id, watches it, a
   assert.deepEqual(Object.keys(started).sort(), ["id", "provider", "startedAt"]);
   await tools.browser_start!.execute!({}, options);
 
-  const first = (await tools.browser_run.execute!({ code: `return 1;`, sessionId: "s1" }, options)) as BrowserRunOutput;
+  const first = (await tools.browser_run.execute!(
+    { code: `return 1;`, sessionId: "s1" },
+    options,
+  )) as BrowserRunOutput;
   await tools.browser_run.execute!({ code: `return 1;` }, options);
   assert.match(first.text, /· session s1\n/);
   assert.doesNotMatch(JSON.stringify(first), /ws:\/\//);
@@ -186,13 +201,22 @@ test("with a Browser, the model starts a session, drives it by id, watches it, a
   assert.match(unknown.text, /Unknown browser session: nope/);
 
   const view = (await tools.browser_live_view!.execute!({ sessionId: "s1" }, options)) as LiveView;
-  const viewOutput = await tools.browser_live_view!.toModelOutput!({ toolCallId: "1", input: { sessionId: "s1" }, output: view });
+  const viewOutput = await tools.browser_live_view!.toModelOutput!({
+    toolCallId: "1",
+    input: { sessionId: "s1" },
+    output: view,
+  });
   assert.equal(viewOutput.type, "content");
   assert.match(JSON.stringify(viewOutput), /"mediaType":"image\/jpeg".*"SlBFRw=="/);
 
   await tools.browser_stop!.execute!({ sessionId: "s1" }, options);
-  const { sessions } = (await tools.browser_list_sessions!.execute!({}, options)) as { sessions: SessionSummary[] };
-  assert.deepEqual(sessions.map((s) => s.id), ["s2"]);
+  const { sessions } = (await tools.browser_list_sessions!.execute!({}, options)) as {
+    sessions: SessionSummary[];
+  };
+  assert.deepEqual(
+    sessions.map((s) => s.id),
+    ["s2"],
+  );
   assert.deepEqual(shutdowns, ["s1"]);
 });
 
@@ -219,5 +243,8 @@ test("with a Browser and no open session, browser_run uses a temporary one", asy
 test("without a Browser there are no session tools", () => {
   const tools = aiSdkTools({ cdpUrl: "ws://fake", env: {} });
   assert.deepEqual(Object.keys(tools).sort(), ["browser_api", "browser_run"]);
-  assert.throws(() => aiSdkTools({ cdpUrl: "ws://fake", browser: providerBrowser({} as never) }), /not both/);
+  assert.throws(
+    () => aiSdkTools({ cdpUrl: "ws://fake", browser: providerBrowser({} as never) }),
+    /not both/,
+  );
 });

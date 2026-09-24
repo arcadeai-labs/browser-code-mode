@@ -16,9 +16,7 @@ process.on("SIGINT", () => void stop());
 process.on("SIGTERM", () => void stop());
 try {
   const browser = await starting;
-  console.log(
-    `CDP browser on ${browser.browser.cdpUrl} (${browser.owned ? "owned" : "borrowed"})`,
-  );
+  console.log(`CDP browser on ${browser.browser.cdpUrl} (${browser.owned ? "owned" : "borrowed"})`);
   if (!browser.owned) process.exit(0);
   browser.process?.once("exit", async () => {
     await browser.shutdown();

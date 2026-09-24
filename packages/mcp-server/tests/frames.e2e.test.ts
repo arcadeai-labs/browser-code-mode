@@ -10,8 +10,8 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 
 import { BrowserSession } from "../src/browse/driver.ts";
-import { runProgram, type ProgramResult } from "../src/sandbox/runner.ts";
-import { serveHardPages, type HardPages } from "./helpers/hard-pages.ts";
+import { type ProgramResult, runProgram } from "../src/sandbox/runner.ts";
+import { type HardPages, serveHardPages } from "./helpers/hard-pages.ts";
 
 const enabled = process.env.BROWSE_E2E === "1";
 const CDP_URL = process.env.BROWSE_CDP_URL ?? "9222";
@@ -55,9 +55,12 @@ async function onHardPage(body: string): Promise<unknown> {
   return result.value;
 }
 
-test("the snapshot includes every frame, cross-site and nested ones too", { skip: !enabled }, async () => {
+test("the snapshot includes every frame, cross-site and nested ones too", {
+  skip: !enabled,
+}, async () => {
   const tree = (await onHardPage(`return tree;`)) as string;
-  const refOf = (name: string) => /\[(\d+)-\d+\]/.exec(tree.split("\n").find((l) => l.includes(name)) ?? "")?.[1];
+  const refOf = (name: string) =>
+    /\[(\d+)-\d+\]/.exec(tree.split("\n").find((l) => l.includes(name)) ?? "")?.[1];
 
   for (const name of [
     "Top button",
@@ -67,12 +70,20 @@ test("the snapshot includes every frame, cross-site and nested ones too", { skip
     "Button in shadow frame",
     "Open shadow button",
     "Closed shadow button",
-  ]) assert.ok(refOf(name) !== undefined, `${name} missing from:\n${tree}`);
+  ])
+    assert.ok(refOf(name) !== undefined, `${name} missing from:\n${tree}`);
 
   // The frame index in a ref says which document the element belongs to.
   assert.equal(refOf("Top button"), "0");
   assert.equal(refOf("Open shadow button"), "0");
-  const frames = new Set(["Same-origin button", "Cross-site button", "Nested frame button", "Button in shadow frame"].map(refOf));
+  const frames = new Set(
+    [
+      "Same-origin button",
+      "Cross-site button",
+      "Nested frame button",
+      "Button in shadow frame",
+    ].map(refOf),
+  );
   assert.equal(frames.size, 4);
   assert.ok(![...frames].includes("0"));
 
@@ -103,7 +114,9 @@ test("refs click inside every frame and shadow root", { skip: !enabled }, async 
   ]);
 });
 
-test("fill, select, read, and type work in cross-site and same-origin frames", { skip: !enabled }, async () => {
+test("fill, select, read, and type work in cross-site and same-origin frames", {
+  skip: !enabled,
+}, async () => {
   const value = await onHardPage(`
     await browse.fill(ref("Cross-site input"), "filled");
     await browse.select(ref("Same-origin select"), ["b"]);
@@ -122,7 +135,12 @@ test("fill, select, read, and type work in cross-site and same-origin frames", {
     crossText: "Text inside the cross-site frame",
     crossValue: "filled",
     typed: "typed",
-    events: ["change:cross-input=filled", "change:same-select=b", "change:cross-input=", "click:cross-input"],
+    events: [
+      "change:cross-input=filled",
+      "change:same-select=b",
+      "change:cross-input=",
+      "click:cross-input",
+    ],
   });
 });
 
@@ -144,7 +162,9 @@ test("CSS pierces open shadow roots and hops into frames with >>", { skip: !enab
   });
 });
 
-test("get box returns page coordinates that mouse.click can use, even in a nested cross-site frame", { skip: !enabled }, async () => {
+test("get box returns page coordinates that mouse.click can use, even in a nested cross-site frame", {
+  skip: !enabled,
+}, async () => {
   const events = await onHardPage(`
     const { x, y } = await browse.get("box", ref("Nested frame button"));
     await mouse.click(x, y);

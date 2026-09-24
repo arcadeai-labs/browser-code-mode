@@ -1,17 +1,11 @@
 /** Web-standard CDP transport. Cloudflare supplies a fetch-upgrade socket factory. */
-export type OpenSocket = (
-  url: string,
-  signal?: AbortSignal,
-) => Promise<WebSocket>;
+export type OpenSocket = (url: string, signal?: AbortSignal) => Promise<WebSocket>;
 
 export const openWebSocket: OpenSocket = (url, signal) =>
   new Promise((resolve, reject) => {
     signal?.throwIfAborted();
     const socket = new WebSocket(url);
-    const timer = setTimeout(
-      () => fail(new Error("CDP connection timed out.")),
-      10_000,
-    );
+    const timer = setTimeout(() => fail(new Error("CDP connection timed out.")), 10_000);
     const cleanup = () => {
       clearTimeout(timer);
       signal?.removeEventListener("abort", abort);
@@ -31,11 +25,9 @@ export const openWebSocket: OpenSocket = (url, signal) =>
       },
       { once: true },
     );
-    socket.addEventListener(
-      "error",
-      () => fail(new Error("CDP WebSocket connection failed.")),
-      { once: true },
-    );
+    socket.addEventListener("error", () => fail(new Error("CDP WebSocket connection failed.")), {
+      once: true,
+    });
   });
 
 type Pending = {
@@ -49,9 +41,7 @@ export class CdpConnection {
   private pending = new Map<number, Pending>();
   private nextId = 0;
   private signal: AbortSignal | undefined;
-  private listeners = new Set<
-    (method: string, params: any, sessionId?: string) => void
-  >();
+  private listeners = new Set<(method: string, params: any, sessionId?: string) => void>();
   private abort = () => this.close();
   constructor(socket: WebSocket, signal?: AbortSignal) {
     this.socket = socket;
@@ -80,14 +70,9 @@ export class CdpConnection {
     this.listeners.add(listener);
   }
 
-  send<T = any>(
-    method: string,
-    params: object = {},
-    sessionId?: string,
-  ): Promise<T> {
+  send<T = any>(method: string, params: object = {}, sessionId?: string): Promise<T> {
     this.signal?.throwIfAborted();
-    if (this.socket.readyState !== 1)
-      return Promise.reject(new Error("CDP connection is closed."));
+    if (this.socket.readyState !== 1) return Promise.reject(new Error("CDP connection is closed."));
     return new Promise<T>((resolve, reject) => {
       const id = ++this.nextId;
       const timer = setTimeout(() => {

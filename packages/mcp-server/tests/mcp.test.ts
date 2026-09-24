@@ -8,7 +8,12 @@ import { LoggingMessageNotificationSchema } from "@modelcontextprotocol/sdk/type
 
 import { createApp } from "../src/app.ts";
 import { loadConfig } from "../src/config.ts";
-import { createFakeBrowser, echoHandler, type FakeBrowser, type FakeHandler } from "./helpers/fake-browser.ts";
+import {
+  createFakeBrowser,
+  echoHandler,
+  type FakeBrowser,
+  type FakeHandler,
+} from "./helpers/fake-browser.ts";
 
 const cleanups: Array<() => Promise<void>> = [];
 
@@ -81,10 +86,10 @@ test("the server advertises exactly the code mode surface", async () => {
   assert.ok(run?.inputSchema.properties && "cdpUrl" in run.inputSchema.properties);
 
   const { resources } = await client.listResources();
-  assert.deepEqual(
-    resources.map((resource) => resource.uri).sort(),
-    ["browse://api.d.ts", "browse://guide.md"],
-  );
+  assert.deepEqual(resources.map((resource) => resource.uri).sort(), [
+    "browse://api.d.ts",
+    "browse://guide.md",
+  ]);
 });
 
 test("the transport is stateless: no session id is issued", async () => {
@@ -227,7 +232,9 @@ test("a provider supplies the browser and is released after the program", async 
           liveViewUrl: `https://cloud.example/watch/${sessionId}`,
         };
       },
-      async shutdown(browser) { released.push(browser.sessionId!); },
+      async shutdown(browser) {
+        released.push(browser.sessionId!);
+      },
     },
     connect: async () => createFakeBrowser(),
   });
@@ -253,7 +260,10 @@ test("a provider supplies the browser and is released after the program", async 
   });
 
   assert.equal(result.isError, false);
-  assert.equal((result.structuredContent as { cdpUrl: string }).cdpUrl, "wss://cloud.example/session-1");
+  assert.equal(
+    (result.structuredContent as { cdpUrl: string }).cdpUrl,
+    "wss://cloud.example/session-1",
+  );
   assert.deepEqual(acquired, ["session-1"]);
   assert.deepEqual(released, ["session-1"], "the session must be ended, not orphaned");
 

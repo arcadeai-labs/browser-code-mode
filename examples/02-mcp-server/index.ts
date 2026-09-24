@@ -10,11 +10,10 @@
  */
 
 import { createServer } from "node:http";
-
+import { localProvider } from "@browse-code-mode/mcp-server/local-browser";
+import { createBrowserToolkit, providerBrowser } from "@browse-code-mode/tools";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { createBrowserToolkit, providerBrowser } from "@browse-code-mode/tools";
-import { localProvider } from "@browse-code-mode/mcp-server/local-browser";
 
 const port = Number(process.env.PORT ?? 3000);
 const host = "127.0.0.1";
@@ -56,7 +55,10 @@ function createMcpServer(): McpServer {
 
   server.registerTool(
     sessions.start.name,
-    { description: sessions.start.description, annotations: { readOnlyHint: false, openWorldHint: true } },
+    {
+      description: sessions.start.description,
+      annotations: { readOnlyHint: false, openWorldHint: true },
+    },
     async ({ signal }) => json(await sessions.start.execute(signal)),
   );
 

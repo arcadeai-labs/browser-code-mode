@@ -6,7 +6,7 @@
  * types, and the sandbox globals at the same time.
  */
 
-import { COMMANDS, commandGroups, SHARED_TYPES, type CommandSpec } from "./commands.ts";
+import { COMMANDS, type CommandSpec, commandGroups, SHARED_TYPES } from "./commands.ts";
 
 export interface RenderOptions {
   /** Restrict output to these `group.fn` keys. Defaults to all. */
@@ -15,7 +15,8 @@ export interface RenderOptions {
 
 const GROUP_DOCS: Record<string, string> = {
   browse: "Top-level `browse` commands: navigation, snapshots, elements, and page state.",
-  mouse: "Raw coordinate input (`browse mouse ...`). Prefer refs when the element is in a snapshot.",
+  mouse:
+    "Raw coordinate input (`browse mouse ...`). Prefer refs when the element is in a snapshot.",
   tab: "Tab management (`browse tab ...`).",
   network: "Network capture (`browse network ...`).",
 };
@@ -89,7 +90,9 @@ export function renderCheatsheet(options: RenderOptions = {}): string {
     if (specs.length === 0) continue;
     lines.push(`## ${group}`);
     for (const spec of specs) {
-      lines.push(`- \`${spec.group}.${spec.fn}${signature(spec)}\` — ${spec.summary} (\`${spec.cli}\`)`);
+      lines.push(
+        `- \`${spec.group}.${spec.fn}${signature(spec)}\` — ${spec.summary} (\`${spec.cli}\`)`,
+      );
     }
     lines.push("");
   }
@@ -115,9 +118,7 @@ function docComment(spec: CommandSpec): string {
   const lines: string[] = [spec.summary, "", `CLI: \`${spec.cli}\``];
 
   const documented = [
-    ...(spec.args ?? [])
-      .filter((arg) => arg.doc)
-      .map((arg) => `@param ${arg.name} ${arg.doc}`),
+    ...(spec.args ?? []).filter((arg) => arg.doc).map((arg) => `@param ${arg.name} ${arg.doc}`),
     ...(spec.options ?? [])
       .filter((option) => option.doc)
       .map((option) => `@param options.${option.name} ${option.doc}`),
@@ -134,9 +135,7 @@ function signature(spec: CommandSpec): string {
   );
 
   if (spec.options?.length) {
-    const fields = spec.options
-      .map((option) => `${option.name}?: ${option.type}`)
-      .join("; ");
+    const fields = spec.options.map((option) => `${option.name}?: ${option.type}`).join("; ");
     params.push(`options?: { ${fields} }`);
   }
 

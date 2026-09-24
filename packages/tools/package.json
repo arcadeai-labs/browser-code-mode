@@ -26,8 +26,12 @@
     "ai": "^7.0.0"
   },
   "peerDependenciesMeta": {
-    "@mastra/core": { "optional": true },
-    "ai": { "optional": true }
+    "@mastra/core": {
+      "optional": true
+    },
+    "ai": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@mastra/core": "1.67.0",

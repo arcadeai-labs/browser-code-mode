@@ -149,8 +149,7 @@ export const COMMANDS: CommandSpec[] = [
     fn: "snapshot",
     wire: "snapshot",
     cli: "browse snapshot",
-    summary:
-      "Capture the accessibility tree and refresh the `@ref` map used by element commands.",
+    summary: "Capture the accessibility tree and refresh the `@ref` map used by element commands.",
     options: [
       {
         name: "full",
@@ -244,9 +243,7 @@ export const COMMANDS: CommandSpec[] = [
     cli: "browse highlight <target>",
     summary: "Flash a visual highlight around an element.",
     args: [{ name: "target", param: "selector", type: "string", doc: SELECTOR_DOC }],
-    options: [
-      { name: "durationMs", type: "number", doc: "Defaults to 2000." },
-    ],
+    options: [{ name: "durationMs", type: "number", doc: "Defaults to 2000." }],
     returns: "{ highlighted: true }",
   },
 
@@ -324,8 +321,8 @@ export const COMMANDS: CommandSpec[] = [
         name: "frame",
         type: "string",
         doc:
-          "Run inside an iframe instead of the top page: a snapshot frame index (`\"2\"` for refs `[2-…]`), " +
-          "the iframe's ref (`\"@0-10\"`), or an iframe selector (`\"#checkout\"`, `\"#outer >> iframe\"`). " +
+          'Run inside an iframe instead of the top page: a snapshot frame index (`"2"` for refs `[2-…]`), ' +
+          'the iframe\'s ref (`"@0-10"`), or an iframe selector (`"#checkout"`, `"#outer >> iframe"`). ' +
           "Cross-site frames work too.",
       },
     ],
@@ -364,9 +361,7 @@ export const COMMANDS: CommandSpec[] = [
       { name: "width", type: "number" },
       { name: "height", type: "number" },
     ],
-    options: [
-      { name: "scale", type: "number", doc: "Device pixel ratio. Defaults to 1." },
-    ],
+    options: [{ name: "scale", type: "number", doc: "Device pixel ratio. Defaults to 1." }],
     returns: "{ viewport: { height: number; width: number } }",
   },
   {
@@ -483,8 +478,7 @@ export const COMMANDS: CommandSpec[] = [
     cli: "browse tab new [url]",
     summary: "Open a new tab and make it active.",
     args: [{ name: "url", type: "string", optional: true }],
-    returns:
-      "{ active: true; index: number; targetId?: string; title?: string; url: string }",
+    returns: "{ active: true; index: number; targetId?: string; title?: string; url: string }",
   },
   {
     group: "tab",
@@ -500,8 +494,7 @@ export const COMMANDS: CommandSpec[] = [
         doc: "Prefer the `targetId` from `tab.list()`; indexes shift as tabs open and close.",
       },
     ],
-    returns:
-      "{ index: number; switched: true; targetId?: string; title?: string; url: string }",
+    returns: "{ index: number; switched: true; targetId?: string; title?: string; url: string }",
   },
   {
     group: "tab",
@@ -509,11 +502,8 @@ export const COMMANDS: CommandSpec[] = [
     wire: "tab.close",
     cli: "browse tab close [tab]",
     summary: "Close a tab. Defaults to the active tab; refuses to close the last one.",
-    args: [
-      { name: "tab", type: "string | number", optional: true, coerce: "string" },
-    ],
-    returns:
-      "{ closed: true; index: number; selectedTargetId?: string; targetId?: string }",
+    args: [{ name: "tab", type: "string | number", optional: true, coerce: "string" }],
+    returns: "{ closed: true; index: number; selectedTargetId?: string; targetId?: string }",
   },
 
   // ------------------------------------------------------------------- session
@@ -608,10 +598,7 @@ export function commandGroups(): GroupName[] {
  * Build driver params from the positional arguments and trailing options object
  * a sandbox program passed, following the spec's arg/option declarations.
  */
-export function buildParams(
-  spec: CommandSpec,
-  args: readonly unknown[],
-): Record<string, unknown> {
+export function buildParams(spec: CommandSpec, args: readonly unknown[]): Record<string, unknown> {
   const params: Record<string, unknown> = {};
   const argSpecs = spec.args ?? [];
 

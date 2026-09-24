@@ -129,12 +129,10 @@ async function shutdown(code = 0) {
   startup.abort();
   await Promise.all(
     children.map(async ({ child }) => {
-      if (!child.pid || child.exitCode !== null || child.signalCode !== null)
-        return;
+      if (!child.pid || child.exitCode !== null || child.signalCode !== null) return;
       const kill = (signal) => {
         try {
-          if (process.platform !== "win32" && child.pid)
-            process.kill(-child.pid, signal);
+          if (process.platform !== "win32" && child.pid) process.kill(-child.pid, signal);
           else child.kill(signal);
         } catch {}
       };
@@ -145,8 +143,7 @@ async function shutdown(code = 0) {
       clearTimeout(timer);
     }),
   );
-  const browser =
-    localBrowser ?? (await startingBrowser?.catch(() => undefined));
+  const browser = localBrowser ?? (await startingBrowser?.catch(() => undefined));
   await browser?.shutdown();
   process.exit(code);
 }
@@ -157,9 +154,7 @@ process.on("SIGTERM", () => shutdown(0));
 // ------------------------------------------------------------- 0. preflight
 // A stale server on either port would let this script report success while the
 // UI talked to yesterday's code, so refuse to start rather than guess.
-for (const [label, port] of [
-  ["web app", WEB_PORT],
-]) {
+for (const [label, port] of [["web app", WEB_PORT]]) {
   if (await portInUse(port)) {
     log("dev", `Port ${port} is already in use, so the ${label} cannot start.`);
     log(
@@ -182,10 +177,7 @@ try {
     await localBrowser.shutdown();
     process.exit(0);
   }
-  log(
-    "chrome",
-    `${localBrowser.owned ? "started" : "borrowed"} browser on :${CHROME_PORT}`,
-  );
+  log("chrome", `${localBrowser.owned ? "started" : "borrowed"} browser on :${CHROME_PORT}`);
   localBrowser.process?.once("exit", () => {
     void shutdown(1);
   });
@@ -197,26 +189,16 @@ try {
 {
   // ----------------------------------------------------------------- 3. web app
   if (!process.env.ANTHROPIC_API_KEY) {
-    log(
-      "web",
-      "ANTHROPIC_API_KEY is not set — the UI will load but chat will fail.",
-    );
+    log("web", "ANTHROPIC_API_KEY is not set — the UI will load but chat will fail.");
   }
-  run(
-    "web",
-    "pnpm",
-    ["--filter", "@browse-code-mode/web", "dev", "--port", String(WEB_PORT)],
-    {
-      env: {
-    BROWSE_PROVIDER: "cdp",
-    PORT: String(WEB_PORT),
-        BROWSE_CDP_URL: String(CHROME_PORT),
-      },
+  run("web", "pnpm", ["--filter", "@browse-code-mode/web", "dev", "--port", String(WEB_PORT)], {
+    env: {
+      BROWSE_PROVIDER: "cdp",
+      PORT: String(WEB_PORT),
+      BROWSE_CDP_URL: String(CHROME_PORT),
     },
-  );
-  if (
-    !(await waitForHttp(`http://localhost:${WEB_PORT}/`, 60_000, "web app"))
-  ) {
+  });
+  if (!(await waitForHttp(`http://localhost:${WEB_PORT}/`, 60_000, "web app"))) {
     shutdown(1);
   }
 
@@ -225,11 +207,7 @@ try {
   log("dev", `ready — ${url}`);
   if (process.env.NO_OPEN !== "1") {
     const opener =
-      process.platform === "darwin"
-        ? "open"
-        : process.platform === "win32"
-          ? "start"
-          : "xdg-open";
+      process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
     spawn(opener, [url], { stdio: "ignore", detached: true }).unref();
   }
 }

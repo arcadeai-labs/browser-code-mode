@@ -1,11 +1,6 @@
 import { anthropic } from "@ai-sdk/anthropic";
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  convertToModelMessages,
-  stepCountIs,
-  streamText,
-  type UIMessage,
-} from "ai";
+import { convertToModelMessages, stepCountIs, streamText, type UIMessage } from "ai";
 
 import { env } from "../lib/env.ts";
 import { openMcpSession } from "../lib/mcp.ts";
@@ -40,10 +35,7 @@ export const Route = createFileRoute("/api/chat")({
           cdpUrl?: string;
         };
         if (!cdpUrl || typeof cdpUrl !== "string")
-          return Response.json(
-            { error: "Start a browser first." },
-            { status: 400 },
-          );
+          return Response.json({ error: "Start a browser first." }, { status: 400 });
 
         let session;
         try {

@@ -268,6 +268,10 @@ pnpm --filter @browse-code-mode/mcp-server test:worker
 pnpm test:e2e  # existing browser on BROWSE_CDP_URL or port 9222
 ```
 
+`pnpm check` runs [Biome](https://biomejs.dev) (lint, formatting, import order)
+before type-checking every package. `pnpm lint:fix` applies Biome's safe fixes
+and formatting; `pnpm format` only formats.
+
 The runtime suites start an isolated Chrome and exercise real MCP execution,
 TypeScript, snapshot-ref clicks, loop interruption, screenshots, and lifecycle
 cleanup against Node and local workerd. They shut down their test processes.

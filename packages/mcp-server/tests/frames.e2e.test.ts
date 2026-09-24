@@ -8,6 +8,7 @@
 
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import { z } from "zod";
 
 import { BrowserSession } from "../src/browse/driver.ts";
 import { runProgram, type ProgramResult } from "../src/sandbox/runner.ts";
@@ -56,7 +57,7 @@ async function onHardPage(body: string): Promise<unknown> {
 }
 
 test("the snapshot includes every frame, cross-site and nested ones too", { skip: !enabled }, async () => {
-  const tree = (await onHardPage(`return tree;`)) as string;
+  const tree = z.string().parse(await onHardPage(`return tree;`));
   const refOf = (name: string) => /\[(\d+)-\d+\]/.exec(tree.split("\n").find((l) => l.includes(name)) ?? "")?.[1];
 
   for (const name of [

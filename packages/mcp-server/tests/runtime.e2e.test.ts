@@ -4,6 +4,7 @@ import { createServer } from "node:net";
 import { test } from "node:test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { z } from "zod";
 import { createLocalBrowser, cdpReady } from "../src/node/local-browser.ts";
 
 async function freePort(): Promise<number> {
@@ -73,7 +74,7 @@ test(
       }
       const create = await fetch(`${base}/browser`, { method: "POST" });
       assert.equal(create.status, 201);
-      const browser = (await create.json()) as { cdpUrl: string };
+      const browser = z.object({ cdpUrl: z.string() }).passthrough().parse(await create.json());
       await client.connect(
         new StreamableHTTPClientTransport(new URL(`${base}/mcp`)),
       );
@@ -93,7 +94,7 @@ test(
       return {answer, title: await browse.get("title"), value: await browse.get("value", "#name")};
     `);
       assert.equal(result.isError, false, JSON.stringify(result));
-      assert.deepEqual((result.structuredContent as { value: unknown }).value, {
+      assert.deepEqual(z.object({ value: z.unknown() }).parse(result.structuredContent).value, {
         answer: 42,
         title: { title: "Runtime" },
         value: { value: "Cloudflare" },
@@ -101,7 +102,7 @@ test(
       const loop = await call("while (true) {}");
       assert.equal(loop.isError, true);
       assert.equal(
-        (loop.structuredContent as { error: { name: string } }).error.name,
+        z.object({ error: z.object({ name: z.string() }) }).parse(loop.structuredContent).error.name,
         "RunTimeoutError",
       );
       const screenshot = await fetch(`${base}/screen`, {

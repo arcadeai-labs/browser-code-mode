@@ -29,13 +29,13 @@ try {
     prompt,
     onStepFinish: ({ toolCalls, toolResults }) => {
       for (const call of toolCalls) {
-        if (call.toolName === "browser_run") {
-          console.log(`\n── browser_run ──\n${(call.input as { code: string }).code}`);
+        if (!call.dynamic && call.toolName === "browser_run") {
+          console.log(`\n── browser_run ──\n${call.input.code}`);
         } else console.log(`\n── ${call.toolName} ──`);
       }
       for (const result of toolResults) {
-        if (result.toolName === "browser_run") {
-          console.log(`→ ${(result.output as { text: string }).text.split("\n")[0]}`);
+        if (!result.dynamic && result.toolName === "browser_run") {
+          console.log(`→ ${result.output.text.split("\n")[0]}`);
         }
       }
     },

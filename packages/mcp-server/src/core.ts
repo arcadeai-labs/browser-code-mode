@@ -99,7 +99,7 @@ export interface RunOutput {
 }
 
 const connectOverCdp: NonNullable<ToolDeps["connect"]> = (options) =>
-  BrowserSession.connect(options as Parameters<typeof BrowserSession.connect>[0]);
+  BrowserSession.connect(options);
 
 /** `browser_run`'s input fields, as a zod raw shape. */
 export function runInputShape(config: ServerConfig) {
@@ -283,10 +283,8 @@ export async function captureScreenshot(
 ): Promise<string> {
   const session = await connect({ cdpUrl, ...(signal ? { signal } : {}) });
   try {
-    const result = (await session.run("screenshot", { type: "jpeg", quality: 70 })) as {
-      base64: string;
-    };
-    return result.base64;
+    const result = await session.run("screenshot", { type: "jpeg", quality: 70 });
+    return z.object({ base64: z.string() }).parse(result).base64;
   } finally {
     await session.close();
   }

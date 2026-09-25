@@ -1,4 +1,3 @@
-import variant from "@jitl/quickjs-wasmfile-release-sync";
 import { newQuickJSWASMModuleFromVariant, newVariant } from "quickjs-emscripten-core";
 import wasmModule from "../node_modules/@jitl/quickjs-wasmfile-release-sync/dist/emscripten-module.wasm";
 import { createApp } from "./app.ts";
@@ -7,17 +6,10 @@ import { providerFromEnv } from "./browse/providers.ts";
 import type { OpenSocket } from "./browse/transport.ts";
 import { loadConfig } from "./config.ts";
 import { createProgramRunner } from "./sandbox/runner.ts";
+import { quickjsVariant } from "./sandbox/variant.ts";
 
 const run = createProgramRunner(() =>
-  newQuickJSWASMModuleFromVariant(
-    newVariant(
-      variant as unknown as Exclude<
-        Awaited<Parameters<typeof newQuickJSWASMModuleFromVariant>[0]>,
-        { default: unknown }
-      >,
-      { wasmModule },
-    ),
-  ),
+  newQuickJSWASMModuleFromVariant(newVariant(quickjsVariant, { wasmModule })),
 );
 
 const openSocket: OpenSocket = async (url, signal) => {

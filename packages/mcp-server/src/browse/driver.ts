@@ -12,11 +12,13 @@
  */
 
 import { NodeHtmlMarkdown } from "node-html-markdown";
+import { z } from "zod";
 import {
   type BrowserContext,
   connectBrowser,
+  LOAD_STATES,
   type LoadState,
-  type MouseButton,
+  MOUSE_BUTTONS,
   type Page,
 } from "./page.ts";
 import {
@@ -348,16 +350,16 @@ const HANDLERS: Record<string, Handler> = {
   // ----------------------------------------------------------------- runtime
   async screenshot(session, params) {
     const page = await session.activePage();
-    const type = optStr(params, "type");
+    const type = optEnum(params, "type", ["png", "jpeg"]);
     const quality = optNum(params, "quality");
-    const clip = params.clip;
+    const clip = optClip(params);
     const buffer = await page.screenshot({
       ...(optBool(params, "fullPage") === undefined
         ? {}
         : { fullPage: optBool(params, "fullPage") }),
-      ...(type === undefined ? {} : { type: type as "png" | "jpeg" }),
+      ...(type === undefined ? {} : { type }),
       ...(quality === undefined ? {} : { quality }),
-      ...(clip === undefined ? {} : { clip: clip as never }),
+      ...(clip === undefined ? {} : { clip }),
     });
 
     if (optStr(params, "path"))
@@ -384,11 +386,11 @@ const HANDLERS: Record<string, Handler> = {
     const timeoutMs = optNum(params, "timeoutMs");
 
     if (type === "load") {
-      await page.waitForLoadState((arg as LoadState | undefined) ?? "load", timeoutMs);
+      await page.waitForLoadState(oneOf("arg", arg, LOAD_STATES) ?? "load", timeoutMs);
     } else if (type === "selector") {
       if (!arg) throw new BrowseCommandError("wait selector requires a target.");
       await page.waitForSelector(session.selector(arg), {
-        state: (optStr(params, "state") ?? "visible") as never,
+        state: optStr(params, "state") ?? "visible",
         timeout: timeoutMs ?? 30_000,
       });
     } else if (type === "timeout") {
@@ -419,10 +421,10 @@ const HANDLERS: Record<string, Handler> = {
     const x = num(params, "x");
     const y = num(params, "y");
     await moveCursorOverlay(session, page, x, y);
-    const button = optStr(params, "button");
+    const button = optEnum(params, "button", MOUSE_BUTTONS);
     const clickCount = optNum(params, "clickCount");
     await page.click(x, y, {
-      ...(button === undefined ? {} : { button: button as MouseButton }),
+      ...(button === undefined ? {} : { button }),
       ...(clickCount === undefined ? {} : { clickCount }),
     });
     return { clicked: true };
@@ -453,11 +455,11 @@ const HANDLERS: Record<string, Handler> = {
     const toX = num(params, "toX");
     const toY = num(params, "toY");
     await moveCursorOverlay(session, page, fromX, fromY);
-    const button = optStr(params, "button");
+    const button = optEnum(params, "button", MOUSE_BUTTONS);
     const steps = optNum(params, "steps");
     const delay = optNum(params, "delay");
     await page.dragAndDrop(fromX, fromY, toX, toY, {
-      ...(button === undefined ? {} : { button: button as MouseButton }),
+      ...(button === undefined ? {} : { button }),
       ...(steps === undefined ? {} : { steps }),
       ...(delay === undefined ? {} : { delay }),
     });
@@ -581,7 +583,7 @@ async function safeTitle(page: Page): Promise<string> {
 
 function navigationOptions(params: Params): { timeout?: number; waitUntil?: LoadState } {
   const timeout = optNum(params, "timeoutMs");
-  const waitUntil = optStr(params, "waitUntil") as LoadState | undefined;
+  const waitUntil = optEnum(params, "waitUntil", LOAD_STATES);
   return {
     ...(timeout === undefined ? {} : { timeout }),
     ...(waitUntil === undefined ? {} : { waitUntil }),
@@ -687,6 +689,41 @@ function optStr(params: Params, key: string): string | undefined {
   return value;
 }
 
+function optEnum<const T extends readonly [string, ...string[]]>(
+  params: Params,
+  key: string,
+  values: T,
+): T[number] | undefined {
+  return oneOf(key, params[key], values);
+}
+
+function oneOf<const T extends readonly [string, ...string[]]>(
+  key: string,
+  value: unknown,
+  values: T,
+): T[number] | undefined {
+  const parsed = z.enum(values).optional().safeParse(value);
+  if (!parsed.success) {
+    throw new BrowseCommandError(`Expected one of ${values.join(", ")} for "${key}".`);
+  }
+  return parsed.data;
+}
+
+const clipSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  width: z.number(),
+  height: z.number(),
+});
+
+function optClip(params: Params): z.infer<typeof clipSchema> | undefined {
+  if (params.clip === undefined) return undefined;
+  const parsed = clipSchema.safeParse(params.clip);
+  if (!parsed.success)
+    throw new BrowseCommandError(`Expected { x, y, width, height } numbers for "clip".`);
+  return parsed.data;
+}
+
 function num(params: Params, key: string): number {
   const value = params[key];
   if (typeof value !== "number" || !Number.isFinite(value)) {
@@ -713,9 +750,7 @@ function optBool(params: Params, key: string): boolean | undefined {
 
 function strArray(params: Params, key: string): string[] {
   const value = params[key];
-  const list = Array.isArray(value) ? value : [value];
-  if (list.length === 0 || list.some((entry) => typeof entry !== "string")) {
-    throw new BrowseCommandError(`Expected one or more strings for "${key}".`);
-  }
-  return list as string[];
+  const list: unknown[] = Array.isArray(value) ? value : [value];
+  if (list.length > 0 && list.every((entry) => typeof entry === "string")) return list;
+  throw new BrowseCommandError(`Expected one or more strings for "${key}".`);
 }

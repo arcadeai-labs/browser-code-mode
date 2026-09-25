@@ -9,6 +9,7 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { z } from "zod";
 
 import { BrowserSession } from "../src/browse/driver.ts";
 import { type ProgramResult, runProgram } from "../src/sandbox/runner.ts";
@@ -42,11 +43,13 @@ test("a program drives a real browser and returns only its result", {
   `);
 
   assert.equal(result.status, "completed", JSON.stringify(result.failedCall ?? result.error));
-  const value = result.value as Record<string, unknown>;
+  const value = z
+    .object({ url: z.string(), title: z.string(), heading: z.string(), treeLines: z.number() })
+    .parse(result.value);
   assert.equal(value.url, "https://example.com/");
   assert.equal(value.title, "Example Domain");
   assert.equal(value.heading, "Example Domain");
-  assert.ok((value.treeLines as number) > 3);
+  assert.ok(value.treeLines > 3);
   assert.equal(result.calls.length, 5);
   assert.ok(result.calls.every((call) => call.ok));
 });
@@ -67,7 +70,7 @@ test("snapshot refs drive clicks within one program", { skip: !enabled }, async 
   `);
 
   assert.equal(result.status, "completed", JSON.stringify(result.failedCall ?? result.error));
-  const value = result.value as { clicked: boolean; url?: string };
+  const value = z.object({ clicked: z.boolean(), url: z.string().optional() }).parse(result.value);
   assert.equal(value.clicked, true);
   assert.notEqual(value.url, "https://example.com/");
 });
@@ -91,7 +94,7 @@ test("page state persists in the browser between programs", { skip: !enabled }, 
   `);
 
   assert.equal(second.status, "completed", JSON.stringify(second.failedCall ?? second.error));
-  assert.equal((second.value as { url: string }).url, "https://example.com/");
+  assert.equal(z.object({ url: z.string() }).parse(second.value).url, "https://example.com/");
 });
 
 test("page JavaScript is reachable through eval", { skip: !enabled }, async () => {
@@ -102,7 +105,7 @@ test("page JavaScript is reachable through eval", { skip: !enabled }, async () =
   `);
 
   assert.equal(result.status, "completed", JSON.stringify(result.failedCall ?? result.error));
-  assert.ok((result.value as { paragraphs: number }).paragraphs >= 1);
+  assert.ok(z.object({ paragraphs: z.number() }).parse(result.value).paragraphs >= 1);
 });
 
 test("tabs, viewport, and typing work end to end", { skip: !enabled }, async () => {
@@ -117,6 +120,6 @@ test("tabs, viewport, and typing work end to end", { skip: !enabled }, async () 
   `);
 
   assert.equal(result.status, "completed", JSON.stringify(result.failedCall ?? result.error));
-  const value = result.value as { opened: number; after: number };
+  const value = z.object({ opened: z.number(), after: z.number() }).parse(result.value);
   assert.equal(value.after, value.opened - 1);
 });

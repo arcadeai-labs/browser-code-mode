@@ -1,11 +1,14 @@
 /** Direct CDP implementation: no browser extension, filesystem, or Node APIs. */
 
+import { z } from "zod";
 import { resolveCdpUrl } from "./cdp.ts";
 import type { FrameTarget, ResolvedSelector } from "./selectors.ts";
 import { CdpConnection, type CdpPayload, type OpenSocket, openWebSocket } from "./transport.ts";
 
-export type LoadState = "load" | "domcontentloaded" | "networkidle";
-export type MouseButton = "left" | "middle" | "right";
+export const LOAD_STATES = ["load", "domcontentloaded", "networkidle"] as const;
+export type LoadState = (typeof LOAD_STATES)[number];
+export const MOUSE_BUTTONS = ["left", "middle", "right"] as const;
+export type MouseButton = (typeof MOUSE_BUTTONS)[number];
 type NavigationOptions = { timeout?: number; waitUntil?: LoadState };
 const pause = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -510,12 +513,12 @@ export class Page {
       const { cssContentSize } = await this.send("Page.getLayoutMetrics");
       clip = cssContentSize;
     }
-    const { data } = await this.send("Page.captureScreenshot", {
+    const response = await this.send("Page.captureScreenshot", {
       format: options.type ?? "png",
       ...(options.quality === undefined ? {} : { quality: options.quality }),
       ...(clip ? { clip: { ...clip, scale: 1 }, captureBeyondViewport: true } : {}),
     });
-    return data as string;
+    return screenshotSchema.parse(response).data;
   }
   async setViewportSize(
     width: number,
@@ -618,7 +621,17 @@ interface FrameTreeNode {
 }
 
 /** CDP's `DOM.Quad`: four corners as x/y pairs, clockwise. */
-type Quad = [number, number, number, number, number, number, number, number];
+const quadSchema = z.tuple([
+  z.number(),
+  z.number(),
+  z.number(),
+  z.number(),
+  z.number(),
+  z.number(),
+  z.number(),
+  z.number(),
+]);
+type Quad = z.infer<typeof quadSchema>;
 
 /** Where a resolved element lives: its frame's session and a remote object. */
 interface ElementHandle {
@@ -820,10 +833,10 @@ export class Locator {
   centroid(): Promise<{ x: number; y: number }> {
     return this.withElement(async ({ sessionId, objectId }) => {
       await this.page.sendTo(sessionId, "DOM.scrollIntoViewIfNeeded", { objectId }).catch(() => {});
-      const { quads } = await this.page
+      const response = await this.page
         .sendTo(sessionId, "DOM.getContentQuads", { objectId })
         .catch(() => ({ quads: [] }));
-      const quad = (quads as Quad[]).find((q) => area(q) > 0);
+      const quad = contentQuadsSchema.parse(response).quads.find((q) => area(q) > 0);
       if (!quad) throw new Error("Element is not visible");
       const [x1, y1, x2, y2, x3, y3, x4, y4] = quad;
       const offset = await this.page.offsetOf(sessionId);
@@ -834,6 +847,9 @@ export class Locator {
     });
   }
 }
+
+const screenshotSchema = z.object({ data: z.string() });
+const contentQuadsSchema = z.object({ quads: z.array(quadSchema) });
 
 function area([x1, y1, x2, y2, x3, y3, x4, y4]: Quad): number {
   return (

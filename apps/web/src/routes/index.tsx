@@ -3,21 +3,26 @@ import { createFileRoute } from "@tanstack/react-router";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useEffect, useRef, useState } from "react";
 import { Streamdown } from "streamdown";
+import { z } from "zod";
 
 import "streamdown/styles.css";
 
 export const Route = createFileRoute("/")({ component: Home });
 
-interface BrowserHandle {
-  provider: string;
-  cdpUrl: string;
-  sessionId?: string;
-  liveViewUrl?: string;
-}
+const browserHandleSchema = z.object({
+  provider: z.string(),
+  cdpUrl: z.string(),
+  sessionId: z.string().optional(),
+  liveViewUrl: z.string().optional(),
+});
+
+type BrowserHandle = z.infer<typeof browserHandleSchema>;
+
+const errorBodySchema = z.object({ error: z.string() });
 
 async function responseError(response: Response): Promise<string> {
-  const body = (await response.json().catch(() => null)) as { error?: string } | null;
-  return body?.error ?? `Browser request failed (HTTP ${response.status}).`;
+  const body = errorBodySchema.safeParse(await response.json().catch(() => null));
+  return body.success ? body.data.error : `Browser request failed (HTTP ${response.status}).`;
 }
 
 function Home() {
@@ -27,7 +32,7 @@ function Home() {
   useEffect(() => {
     try {
       const saved = sessionStorage.getItem("browse.browser");
-      if (saved) setBrowser(JSON.parse(saved));
+      if (saved) setBrowser(browserHandleSchema.parse(JSON.parse(saved)));
     } catch {
       sessionStorage.removeItem("browse.browser");
     }
@@ -42,7 +47,7 @@ function Home() {
         ...(browser ? { body: JSON.stringify(browser) } : {}),
       });
       if (!response.ok) throw new Error(await responseError(response));
-      const next: BrowserHandle | null = browser ? null : await response.json();
+      const next = browser ? null : browserHandleSchema.parse(await response.json());
       setBrowser(next);
       try {
         if (next) sessionStorage.setItem("browse.browser", JSON.stringify(next));
@@ -277,20 +282,24 @@ interface ToolCallView {
   errorText?: string;
 }
 
+const toolPartSchema = z.object({
+  type: z.string(),
+  toolName: z.string().optional(),
+  state: z.string().optional(),
+  input: z.unknown(),
+  output: z.unknown(),
+  errorText: z.string().optional(),
+});
+
 /**
  * MCP tools arrive as dynamic tool parts. Narrow them here rather than trusting
  * a tool-specific part type that only exists for statically declared tools.
  */
 function asToolCall(part: UIMessage["parts"][number]): ToolCallView | null {
   if (part.type !== "dynamic-tool" && !part.type.startsWith("tool-")) return null;
-  const record = part as unknown as {
-    type: string;
-    toolName?: string;
-    state?: string;
-    input?: unknown;
-    output?: unknown;
-    errorText?: string;
-  };
+  const parsed = toolPartSchema.safeParse(part);
+  if (!parsed.success) return null;
+  const record = parsed.data;
   return {
     name: record.toolName ?? record.type.replace(/^tool-/, ""),
     state: record.state ?? "",
@@ -324,7 +333,7 @@ function ToolCall({ call }: { call: ToolCallView }) {
 
 function codeOf(input: unknown): string {
   if (input && typeof input === "object" && "code" in input) {
-    const code = (input as { code?: unknown }).code;
+    const code = input.code;
     if (typeof code === "string") return code;
   }
   return input === undefined ? "" : stringify(input);
@@ -336,13 +345,11 @@ function textOf(output: unknown): string {
 
   // MCP tool results arrive as content blocks; show the text the server rendered.
   if (typeof output === "object" && "content" in output) {
-    const content = (output as { content?: unknown }).content;
+    const { content } = output;
     if (Array.isArray(content)) {
       const text = content
         .map((block) =>
-          block && typeof block === "object" && "text" in block
-            ? String((block as { text: unknown }).text)
-            : "",
+          block && typeof block === "object" && "text" in block ? String(block.text) : "",
         )
         .filter(Boolean)
         .join("\n");

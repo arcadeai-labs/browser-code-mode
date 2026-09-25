@@ -41,7 +41,7 @@ export interface BrowserSession {
 
 export interface LiveView {
   /** The session's live view page, when the provider has one. */
-  url?: string;
+  url?: string | undefined;
   /** The current page, as the model sees it. */
   screenshot: { mediaType: "image/jpeg"; base64: string };
 }

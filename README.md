@@ -260,6 +260,7 @@ MCP bearer authentication protects the backend; it is not web-user authenticatio
 ## Validation
 
 ```sh
+pnpm lint   # Biome: format, recommended rules, and biome-plugin-no-type-assertion (no `as` casts)
 pnpm check
 pnpm test
 pnpm build

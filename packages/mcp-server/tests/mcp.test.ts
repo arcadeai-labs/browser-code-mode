@@ -5,6 +5,7 @@ import { serve } from "@hono/node-server";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { LoggingMessageNotificationSchema } from "@modelcontextprotocol/sdk/types.js";
+import { z } from "zod";
 
 import { createApp } from "../src/app.ts";
 import { loadConfig } from "../src/config.ts";
@@ -21,8 +22,8 @@ after(async () => {
   for (const close of cleanups) await close();
 });
 
-async function startServer(env: NodeJS.ProcessEnv = {}, handler?: FakeHandler) {
-  const config = loadConfig({ BROWSE_CDP_URL: "ws://fake-browser", ...env } as NodeJS.ProcessEnv);
+async function startServer(env: Record<string, string | undefined> = {}, handler?: FakeHandler) {
+  const config = loadConfig({ BROWSE_CDP_URL: "ws://fake-browser", ...env });
 
   const connections: FakeBrowser[] = [];
   const app = createApp({
@@ -68,9 +69,13 @@ async function startServer(env: NodeJS.ProcessEnv = {}, handler?: FakeHandler) {
   return { url, client, run, notifications, connections, transport };
 }
 
+const contentSchema = z
+  .array(z.object({ type: z.string(), text: z.string().optional() }))
+  .optional();
+const structuredSchema = z.record(z.unknown());
+
 function textOf(result: { content?: unknown }): string {
-  const content = result.content as Array<{ type: string; text: string }> | undefined;
-  return content?.[0]?.text ?? "";
+  return contentSchema.parse(result.content)?.[0]?.text ?? "";
 }
 
 test("the server advertises exactly the code mode surface", async () => {
@@ -117,7 +122,7 @@ test("a program runs and returns structured output", async () => {
   assert.equal(result.isError, false);
   assert.match(textOf(result), /^completed · 2 commands/);
 
-  const structured = result.structuredContent as Record<string, unknown>;
+  const structured = structuredSchema.parse(result.structuredContent);
   assert.equal(structured.status, "completed");
   assert.deepEqual(structured.value, { title: "fake-title" });
   assert.equal(structured.cdpUrl, "ws://fake-browser");
@@ -126,7 +131,8 @@ test("a program runs and returns structured output", async () => {
   assert.ok(
     notifications.some(
       (notification) =>
-        (notification as { cli?: string }).cli === "browse open https://example.com",
+        z.object({ cli: z.string() }).safeParse(notification).data?.cli ===
+        "browse open https://example.com",
     ),
   );
 
@@ -160,11 +166,11 @@ test("the connection is released even when the program fails", async () => {
 test("a call naming its own cdpUrl overrides the default", async () => {
   const { run } = await startServer();
   const result = await run(`return 1;`, { cdpUrl: "ws://other-browser" });
-  assert.equal((result.structuredContent as { cdpUrl: string }).cdpUrl, "ws://other-browser");
+  assert.equal(structuredSchema.parse(result.structuredContent).cdpUrl, "ws://other-browser");
 });
 
 test("a missing browser is reported instead of guessed", async () => {
-  const config = loadConfig({} as NodeJS.ProcessEnv);
+  const config = loadConfig({});
   assert.equal(config.defaultCdpUrl, undefined);
 
   const app = createApp({ config, connect: async () => createFakeBrowser() });
@@ -201,10 +207,9 @@ test("a bearer token is required when one is configured", async () => {
 test("health reports the stateless deployment", async () => {
   const { url } = await startServer();
   const origin = new URL(url).origin;
-  const health = (await (await fetch(`${origin}/health`)).json()) as {
-    stateless: boolean;
-    defaultCdpUrl: string;
-  };
+  const health = z
+    .object({ stateless: z.boolean(), defaultCdpUrl: z.string() })
+    .parse(await (await fetch(`${origin}/health`)).json());
   assert.equal(health.stateless, true);
   assert.equal(health.defaultCdpUrl, "ws://fake-browser");
 
@@ -217,7 +222,7 @@ test("a provider supplies the browser and is released after the program", async 
   const acquired: string[] = [];
   const released: Array<string | undefined> = [];
 
-  const config = loadConfig({} as NodeJS.ProcessEnv);
+  const config = loadConfig({});
   const app = createApp({
     config,
     provider: {
@@ -261,7 +266,7 @@ test("a provider supplies the browser and is released after the program", async 
 
   assert.equal(result.isError, false);
   assert.equal(
-    (result.structuredContent as { cdpUrl: string }).cdpUrl,
+    structuredSchema.parse(result.structuredContent).cdpUrl,
     "wss://cloud.example/session-1",
   );
   assert.deepEqual(acquired, ["session-1"]);
@@ -275,7 +280,7 @@ test("a provider supplies the browser and is released after the program", async 
 });
 
 test("a provider that cannot produce a browser reports why", async () => {
-  const config = loadConfig({} as NodeJS.ProcessEnv);
+  const config = loadConfig({});
   const app = createApp({
     config,
     provider: {

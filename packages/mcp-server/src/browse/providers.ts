@@ -1,4 +1,5 @@
 /** Hosted lifecycles use fetch only and retain no process-local session state. */
+import { z } from "zod";
 import { type BrowserProvider, browserProvider, staticProvider } from "./provider.ts";
 
 type Env = Record<string, string | undefined>;
@@ -34,7 +35,7 @@ export function providerFromEnv(env: Env, request: Fetch = fetch): BrowserProvid
     if (deleting && [404, 410].includes(response.status)) return null;
     if (!response.ok) throw new Error(`${name} ${method} failed (HTTP ${response.status}).`);
     if (response.status === 204) return null;
-    return response.json() as Promise<Record<string, unknown>>;
+    return z.record(z.unknown()).parse(await response.json());
   };
   const field = (data: Record<string, unknown> | null, key: string): string => {
     const value = data?.[key];

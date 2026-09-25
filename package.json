@@ -30,6 +30,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
     "@types/node": "^22.19.0",
+    "biome-plugin-no-type-assertion": "1.1.1",
     "simple-git-hooks": "2.14.0",
     "typescript": "^5.9.3"
   }

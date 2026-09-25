@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { z } from "zod";
 
 import { runProgram } from "../src/sandbox/runner.ts";
 import { createFakeBrowser, echoHandler } from "./helpers/fake-browser.ts";
@@ -159,7 +160,7 @@ test("denied commands cannot be called", async () => {
     deny: ["browse.eval"],
   });
 
-  const outcome = result.value as Record<string, string>;
+  const outcome = z.record(z.string()).parse(result.value);
   assert.match(outcome.eval ?? "", /Unknown host function: browse\.eval/);
   assert.equal(outcome.click, "ran");
   assert.deepEqual(
@@ -183,7 +184,7 @@ test("an allowlist blocks every command outside it", async () => {
     allow: ["browse.open"],
   });
 
-  const outcome = result.value as Record<string, string>;
+  const outcome = z.record(z.string()).parse(result.value);
   assert.equal(outcome.open, "ran");
   assert.match(outcome.mouseClick ?? "", /Unknown host function: mouse\.click/);
   assert.deepEqual(

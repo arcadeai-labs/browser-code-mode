@@ -12,20 +12,26 @@
  */
 
 import { createTool } from "@mastra/core/tools";
+import { z } from "zod";
 
 import {
   type Browser,
-  type BrowserRunOutput,
   type BrowserToolkit,
   type BrowserToolsOptions,
   createBrowserToolkit,
-  type LiveView,
   liveViewModelOutput,
   type SessionToolkit,
   toModelOutput,
 } from "./index.ts";
 
 export { type BrowserRunOutput, type BrowserToolsOptions, instructions } from "./index.ts";
+
+// Mastra types a tool's output only through `outputSchema`, so `toModelOutput` receives `unknown`.
+const runOutputSchema = z.object({ text: z.string(), isError: z.boolean() });
+const liveViewSchema = z.object({
+  url: z.string().optional(),
+  screenshot: z.object({ mediaType: z.literal("image/jpeg"), base64: z.string() }),
+});
 
 type RunTools = ReturnType<typeof runTools>;
 type SessionTools = ReturnType<typeof sessionTools>;
@@ -56,7 +62,7 @@ function runTools({ api, run }: BrowserToolkit) {
       description: run.description,
       inputSchema: run.inputSchema,
       execute: (input, { abortSignal }) => run.execute(input, abortSignal),
-      toModelOutput: (output) => toModelOutput(output as BrowserRunOutput),
+      toModelOutput: (output) => toModelOutput(runOutputSchema.parse(output)),
     }),
   };
 }
@@ -86,7 +92,7 @@ function sessionTools(sessions: SessionToolkit) {
       description: sessions.liveView.description,
       inputSchema: sessions.liveView.inputSchema,
       execute: (input, { abortSignal }) => sessions.liveView.execute(input, abortSignal),
-      toModelOutput: (output) => liveViewModelOutput(output as LiveView),
+      toModelOutput: (output) => liveViewModelOutput(liveViewSchema.parse(output)),
     }),
   };
 }
